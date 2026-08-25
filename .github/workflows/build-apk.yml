@@ -1,0 +1,57 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: Install dependencies
+        run: npm install
+      
+      - name: Add Android platform
+        run: npx cap add android
+      
+      - name: Copy icon
+        run: |
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            mkdir -p android/app/src/main/res/mipmap-$d
+            cp icon.png android/app/src/main/res/mipmap-$d/ic_launcher.png
+            cp icon.png android/app/src/main/res/mipmap-$d/ic_launcher_round.png
+          done
+      
+      - name: Fix Manifest
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          sed -i '/<uses-permission android:name="android.permission.INTERNET" \/>/a \    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />' $MANIFEST
+      
+      - name: Sync
+        run: npx cap sync android
+      
+      - name: Build APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
+      
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: taqweem-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
