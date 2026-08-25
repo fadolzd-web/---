@@ -1,4 +1,4 @@
-name: Build APK
+name: Build APK - GOLDEN
 on: [push]
 jobs:
   build:
@@ -6,12 +6,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create www folder
+      - name: Show files
+        run: |
+          ls -la
+          echo "icon.png:"
+          ls -lh icon.png || echo "NO ICON IN ROOT - will fail"
+          echo "index.html size:"
+          ls -lh index.html
+
+      - name: Create www
         run: |
           mkdir -p www
           cp index.html www/index.html
-          cp icon.png www/icon.png || true
-          ls -la www/
+          cp icon.png www/icon.png
+          ls -lh www/
 
       - uses: actions/setup-node@v4
         with:
@@ -24,37 +32,43 @@ jobs:
 
       - uses: android-actions/setup-android@v3
 
-      - name: Install deps
+      - name: Install
         run: npm install
 
-      - name: Init Capacitor
-        run: npx cap init Taqweem com.fadol.taqweem --web-dir=www
+      - name: Init Cap
+        run: npx cap init "التقويم الشامل" com.fadol.taqweem --web-dir=www
 
       - name: Add Android
         run: npx cap add android
 
-      - name: Sync plugins
+      - name: Sync
         run: npx cap sync android
 
-      - name: Copy assets
+      - name: Copy
         run: npx cap copy android
 
-      - name: Set icons
+      - name: FORCE ICONS GOLDEN
         run: |
+          echo "=== FORCING ICONS ==="
+          ls -lh icon.png
           for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
             mkdir -p android/app/src/main/res/$d
-            cp icon.png android/app/src/main/res/$d/ic_launcher.png
-            cp icon.png android/app/src/main/res/$d/ic_launcher_round.png
+            cp -f icon.png android/app/src/main/res/$d/ic_launcher.png
+            cp -f icon.png android/app/src/main/res/$d/ic_launcher_round.png
+            cp -f icon.png android/app/src/main/res/$d/ic_launcher_foreground.png || true
+            echo "$d -> $(ls -lh android/app/src/main/res/$d/ic_launcher.png | awk '{print $9, $5}')"
           done
+          echo "=== All launcher icons ==="
+          find android/app/src/main/res -name "ic_launcher*" -exec ls -lh {} \;
 
-      - name: Build APK
+      - name: Build
         run: |
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Upload APK
+      - name: Upload GOLDEN APK
         uses: actions/upload-artifact@v4
         with:
-          name: taqweem-apk
+          name: taqweem-GOLDEN-with-icon
           path: android/app/build/outputs/apk/debug/app-debug.apk
