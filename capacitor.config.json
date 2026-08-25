@@ -1,5 +1,6 @@
 {
   "appId": "com.fadol.taqweem",
-  "appName": "التقويم",
-  "webDir": "www"
+  "appName": "التقويم الشامل",
+  "webDir": "www",
+  "plugins": { "LocalNotifications": { "smallIcon": "ic_launcher", "iconColor": "#d4af37" } }
 }
