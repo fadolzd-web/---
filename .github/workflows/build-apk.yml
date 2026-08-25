@@ -1,55 +1,42 @@
 name: Build APK
-
-on:
-  push:
-    branches: [ main ]
-  workflow_dispatch:
-
+on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: 18
-      
-      - name: Setup Java
-        uses: actions/setup-java@v4
+          node-version: 20
+      - uses: actions/setup-java@v4
         with:
-          distribution: 'temurin'
-          java-version: '17'
-      
-      - name: Install dependencies
+          java-version: 21
+          distribution: temurin
+      - uses: android-actions/setup-android@v3
+      - name: Install Capacitor
         run: npm install
-      
-      - name: Add Android platform
-        run: npx cap add android
-      
-      - name: Copy icon
+      - name: Prepare www
         run: |
-          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
-            mkdir -p android/app/src/main/res/mipmap-$d
-            cp icon.png android/app/src/main/res/mipmap-$d/ic_launcher.png
-            cp icon.png android/app/src/main/res/mipmap-$d/ic_launcher_round.png
+          mkdir -p www
+          cp index.html www/index.html
+          cp icon.png www/icon.png || true
+      - name: Init and Add Android
+        run: |
+          npx cap init Taqweem com.fadol.taqweem --web-dir=www || true
+          npx cap add android || true
+          npx cap copy android
+      - name: Set Icons
+        run: |
+          for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            mkdir -p android/app/src/main/res/$d
+            cp icon.png android/app/src/main/res/$d/ic_launcher.png
+            cp icon.png android/app/src/main/res/$d/ic_launcher_round.png
           done
-      
-      - name: Fix Manifest
-        run: |
-          MANIFEST=android/app/src/main/AndroidManifest.xml
-          sed -i '/<uses-permission android:name="android.permission.INTERNET" \/>/a \    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />\n    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />\n    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />' $MANIFEST
-      
-      - name: Sync
-        run: npx cap sync android
-      
       - name: Build APK
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
-      
+          ./gradlew assembleDebug --stacktrace
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
