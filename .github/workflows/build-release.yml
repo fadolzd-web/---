@@ -42,6 +42,7 @@ jobs:
 
       - name: FIX ICONS - Resize properly
         run: |
+          pip install Pillow
           python3 << 'PY'
           from PIL import Image
           import os
