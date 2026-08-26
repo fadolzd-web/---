@@ -2,5 +2,22 @@
   "appId": "com.fadol.taqweem",
   "appName": "التقويم الشامل",
   "webDir": "www",
-  "plugins": { "LocalNotifications": { "smallIcon": "ic_launcher", "iconColor": "#d4af37" } }
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_launcher",
+      "iconColor": "#d4af37"
+    },
+    "Geolocation": {
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
+    }
+  },
+  "android": {
+    "permissions": [
+      "android.permission.ACCESS_FINE_LOCATION",
+      "android.permission.ACCESS_COARSE_LOCATION"
+    ]
+  }
 }
