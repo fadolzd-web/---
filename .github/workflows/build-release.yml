@@ -70,7 +70,22 @@ jobs:
               if os.path.exists(fg):
                   os.remove(fg)
               print(f"{folder} -> {size}x{size} OK")
-          print("Icons fixed")
+          # FIX: امسح مجلد anydpi-v26 اللي بيشير لـ foreground الممسوح - هذا سبب الـ error الحالي
+          import shutil
+          anydpi="android/app/src/main/res/mipmap-anydpi-v26"
+          if os.path.exists(anydpi):
+              shutil.rmtree(anydpi)
+              print(f"Deleted {anydpi} - fixes foreground not found error")
+          # كمان امسح اي ملفات foreground متبقية في اي مكان
+          for root, dirs, files in os.walk("android/app/src/main/res"):
+              for f in files:
+                  if "foreground" in f:
+                      fp=os.path.join(root,f)
+                      try:
+                          os.remove(fp)
+                          print(f"Removed leftover {fp}")
+                      except: pass
+          print("Icons fixed - your icon.png preserved")
           PY
 
       - name: Decode Keystore
