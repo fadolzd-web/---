@@ -13,6 +13,8 @@ jobs:
           ls -lh icon.png || echo "NO ICON IN ROOT - will fail"
           echo "index.html size:"
           ls -lh index.html
+          echo "capacitor.config.json:"
+          cat capacitor.config.json
 
       - name: Create www
         run: |
@@ -35,17 +37,39 @@ jobs:
       - name: Install
         run: npm install
 
-      - name: Init Cap
-        run: npx cap init "التقويم الشامل" com.fadol.taqweem --web-dir=www
+      - name: Init Cap - FIXED (preserve permissions)
+        run: |
+          if [ ! -f capacitor.config.json ]; then
+            npx cap init "التقويم الشامل" com.fadol.taqweem --web-dir=www
+          else
+            echo "Config exists, keeping it with location permissions"
+            cat capacitor.config.json
+          fi
 
       - name: Add Android
-        run: npx cap add android
+        run: npx cap add android || echo "android already exists"
 
       - name: Sync
         run: npx cap sync android
 
       - name: Copy
         run: npx cap copy android
+
+      - name: PATCH QIBLA PERMISSIONS - CRITICAL
+        run: |
+          echo "=== Patching AndroidManifest for Qibla ==="
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          cat $MANIFEST
+          # Add permissions if not present
+          if ! grep -q "ACCESS_FINE_LOCATION" $MANIFEST; then
+            sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' $MANIFEST
+          fi
+          if ! grep -q "ACCESS_COARSE_LOCATION" $MANIFEST; then
+            sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' $MANIFEST
+          fi
+          echo "=== AFTER PATCH ==="
+          grep -A2 -B2 "LOCATION" $MANIFEST || echo "No location found"
+          cat $MANIFEST
 
       - name: FORCE ICONS GOLDEN
         run: |
