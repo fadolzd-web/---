@@ -62,8 +62,8 @@
 })();
 </script>
 <style>
-html,body{background:#0a1f14 !important;margin:0;padding:0}
-#root{background:#0a1f14;min-height:100vh}
+html,body{background:#0a1f14;margin:0;padding:0}
+#root{min-height:100vh;background:transparent}
 </style>
 <style>
 @font-face {
@@ -476,7 +476,7 @@ Error generating stack: `+u.message+`
       return e?`${e.hd} ${e.hmName||e.hm} ${e.hy} هـ`:""
     }catch{ return ""; }
   }
-}function ir(n){try{let e=new Intl.DateTimeFormat("en-GB",{day:"numeric",month:"numeric",timeZone:"Asia/Beirut"}).formatToParts(n),r=(t)=>parseInt(e.find((l)=>l.type===t)?.value||"0",10);return{day:r("day"),month:r("month")}}catch{return{day:n.getUTCDate(),month:n.getUTCMonth()+1}}}function va(n,e,r){let t=e.split(" "),l=[],u="";for(let i of t){let c=u?u+" "+i:i;if(n.measureText(c).width>r&&u)l.push(u),u=i;else u=c}if(u)l.push(u);return l}function kt(n){switch(n){case"wilada":return"bg-[#22c55e]";case"wafat":return"bg-[#ef4444]";case"eid":return"bg-[#facc15]";default:return"bg-[#38bdf8]"}}function Fs(n){switch(n){case"wilada":return"#22c55e";case"wafat":return"#ef4444";case"eid":return"#facc15";default:return"#38bdf8"}}function Vl(n){switch(n){case"wilada":return"مولد";case"wafat":return"شهادة";case"eid":return"عيد";default:return"حدث"}}function Ts(n){let e=n.title+" "+(n.desc||"");return e.includes("رواية")||e.includes("على رواية")}function lh(n){if(n.strength==="رواية")return{show:!0,text:"على رواية ذكرها المؤرخون",isRiwaya:!0,isWeak:!0};if(Ts(n))return{show:!0,text:"على رواية ذكرها المؤرخون",isRiwaya:!0,isWeak:!1};return{show:!0,text:n.strength,isRiwaya:!1,isWeak:!1}}function vi(n){if(n.strength==="رواية")return"على رواية ذكرها المؤرخون";return n.strength}function gi(n){if(n.strength==="صحيحة")return"bg-[#bbf7d0] text-[#14532d] border-[#4ade80]";if(n.strength==="مشهورة")return"bg-[#fef08a] text-[#713f12] border-[#facc15]";if(n.strength==="رواية")return"bg-[#ffedd5] text-[#9a3412] border-[#fb923c]";if(Ts(n))return"bg-[#ffedd5] text-[#9a3412] border-[#fb923c]";return"bg-[#fef08a] text-[#713f12] border-[#facc15]"}function ga(n){if(!n)return"";return n.replace(/\s{2,}/g," ").trim()}function uh(n){let e=n;if(e.includes("العباس"))return{domeColor:"#d4af37",baseColor:"#b48f1e",accent:"#22c55e",flag:!0,type:"karbala_abbas"};if(e.includes("الحسين")||e.includes("كربلاء")||e.includes("عاشوراء")||e.includes("الأربعين")||e.includes("أربعين"))return{domeColor:"#d4af37",baseColor:"#a67c0a",accent:"#ef4444",flag:!0,type:"karbala"};if(e.includes("الحسن المجتبى"))return{domeColor:"#cbdcc8",baseColor:"#8aa68a",accent:"#d4af37",type:"baqi"};if(e.includes("السجاد")||e.includes("زين العابدين")||e.includes("العابدين"))return{domeColor:"#d5ddd1",baseColor:"#8aa08a",type:"baqi"};if(e.includes("الباقر")||e.includes("الصادق"))return{domeColor:"#e2e8d8",baseColor:"#8fa88f",type:"baqi"};if(e.includes("الكاظم")||e.includes("الجواد"))return{domeColor:"#d4af37",baseColor:"#b8941f",twin:!0,accent:"#d4af37",type:"kazimayn"};if(e.includes("الرضا"))return{domeColor:"#d4af37",baseColor:"#1e5a7a",base2Color:"#2fb5b5",accent:"#2ec4b6",type:"mashhad"};if(e.includes("الهادي")||e.includes("العسكري"))return{domeColor:"#d4af37",baseColor:"#b8941f",type:"samarra"};if(e.includes("المهدي")||e.includes("المنتظر"))return{domeColor:"#d4af37",baseColor:"#b8941f",accent:"#f5d76e",type:"samarra_mahdi"};if(e.includes("الزهراء")||e.includes("زينب")||e.includes("أم البنين")||e.includes("معصومة")||e.includes("سكينة")||e.includes("رقية")||e.includes("خديجة")||e.includes("أم كلثوم"))return{domeColor:"#4ecdc4",baseColor:"#2a9d8f",base2Color:"#1a7a6e",accent:"#d4af37",type:"turquoise"};if(e.includes("النبي")||e.includes("محمد")||e.includes("المبعث")||e.includes("الإسراء")||e.includes("بعثة"))return{domeColor:"#2d6a4f",baseColor:"#1b4332",base2Color:"#2d6a4f",accent:"#d4af37",type:"medina"};if(e.includes("أمير المؤمنين")||e.includes("علي")&&!e.includes("زين")&&!e.includes("الأكبر")&&!e.includes("أم البنين"))return{domeColor:"#d4af37",baseColor:"#b8941f",type:"najaf"};return{domeColor:"#d4af37",baseColor:"#b8941f",type:"generic"}}function _a(n,e,r,t,l){let u=r+t*0.25,i=t*0.9,c=t*2.2,p=e-c/2,m=n.createLinearGradient(p,u,p,u+i);m.addColorStop(0,l.baseColor),m.addColorStop(1,l.base2Color||l.baseColor),n.fillStyle=m,n.fillRect(p,u,c,i),n.fillStyle=l.domeColor,n.fillRect(p-6,u-6,c+12,10),n.beginPath(),n.fillStyle=l.domeColor,n.arc(e,u,t,Math.PI,0,!1),n.lineTo(e+t,u),n.lineTo(e-t,u),n.closePath(),n.fill(),n.save(),n.globalAlpha=0.22,n.fillStyle="white",n.beginPath(),n.ellipse(e-t*0.28,u-t*0.35,t*0.32,t*0.45,-0.2,0,Math.PI*2),n.fill(),n.restore();let v=u-t-6;if(n.beginPath(),n.fillStyle=l.accent||"#d4af37",n.arc(e,v-10,6,0,Math.PI*2),n.fill(),n.fillRect(e-1.5,v-10,3,14),l.flag){let d=l.type==="karbala_abbas"?"#22c55e":"#ef4444";n.fillStyle="#cbd5e1",n.fillRect(e+6,v-22,2,26),n.fillStyle=d,n.beginPath(),n.moveTo(e+8,v-22),n.lineTo(e+34,v-18),n.lineTo(e+30,v-8),n.lineTo(e+8,v-12),n.closePath(),n.fill()}let C=c*0.22,_=i*0.62,R=e-C/2,E=u+i-_;n.fillStyle="rgba(10,31,20,0.9)",n.beginPath(),n.moveTo(R,E+_),n.lineTo(R,E+C*0.3),n.arc(e,E+C*0.3,C/2,Math.PI,0,!1),n.lineTo(R+C,E+_),n.closePath(),n.fill(),n.strokeStyle="rgba(212,175,55,0.35)",n.lineWidth=1.5,n.stroke();let V=5,J=u+i*0.35;[[-1,-0.6],[-1,-0.25],[1,-0.6],[1,-0.25]].forEach(([d,y])=>{let S=e+d*c*0.32+y*6;n.fillStyle="rgba(0,0,0,0.55)",n.beginPath(),n.arc(S,J,V,0,Math.PI*2),n.fill(),n.strokeStyle="rgba(212,175,55,0.25)",n.lineWidth=1,n.stroke()})}function ih(n,e,r,t,l){if(e.twin){let u=l*0.15;_a(n,r-u-l*0.32,t,l*0.72,e),_a(n,r+u+l*0.32,t,l*0.72,e);let i=t+l*0.72*0.25,c=l*0.65;n.fillStyle=e.baseColor,n.fillRect(r-u-l*0.32-l*0.22,i,u*2+l*1.88,c);return}_a(n,r,t,l,e)}function wa(){let[n,e]=N.useState(""),[r,t]=N.useState(""),[l,u]=N.useState(null),[i,c]=N.useState(1448),[p,m]=N.useState(2),[v,C]=N.useState(null),_$_surgical_patch=(window._Setters={setYear:c,setMonth:m,setDay:C,setFullDay:u,setYearFull:(y)=>c(y),setMonthFull:(mo)=>m(mo),setFullObject:(obj)=>{try{c(obj.hy);m(obj.hm);C(obj.hd);if(obj.hd&&obj.hm&&obj.hy)u(obj);}catch(e){}},setYearMonth:(yy,mm)=>{try{c(yy);m(mm);}catch(e){}},updateFromFinal:(obj)=>{try{c(obj.hy);m(obj.hm);C(obj.hd);u(obj);if(window.FINAL_HIJRI)window.FINAL_HIJRI=obj;}catch(e){}}},window._Setters._reactStates={i:i,p:p,v:v},window.addEventListener&&!window._taqweem_listener_added&&(window._taqweem_listener_added=!0,window.addEventListener('taqweem_final_updated',function(e){try{var obj=e.detail&&e.detail.obj?e.detail.obj:e.detail;if(obj&&obj.hy&&obj.hm&&obj.hd){c(obj.hy);m(obj.hm);C(obj.hd);u(obj);}}catch(err){}}),window.addEventListener('_final_updated',function(e){try{var obj=e.detail&&e.detail.obj?e.detail.obj:e.detail;if(obj&&obj.hy&&obj.hm&&obj.hd){c(obj.hy);m(obj.hm);C(obj.hd);u(obj);}}catch(err){}}))),[_,R]=N.useState(""),[E,V]=N.useState("all"),[J,h]=N.useState(null),[d,y]=N.useState(!1),[networkDay,setNetworkDay]=N.useState(null),[showNetwork,setShowNetwork]=N.useState(!1),[S,O]=N.useState(!1),[U,I]=N.useState(0),[B,j]=N.useState(null),[Z,Wn]=N.useState(!1),[Ci,or]=N.useState(!1),[Ws,Ql]=N.useState("default"),[zi,Na]=N.useState(null),[Or,Vr]=N.useState(null),[Xs,vt]=[!1,function(){}],[Pi,gt]=[!1,function(){}],[Cn,La]=[0,function(){}],[rn,Si]=N.useState("hijri"),[he,Oe]=N.useState(2025),[zn,ie]=N.useState(1),[Xn,Ve]=N.useState(null),[oe,wi]=N.useState(null),[oh,fh]=N.useState(!1),Js={master:!0,items:ha.reduce((o,f)=>{return o[f.key]={oneDay:!0,twoDay:!0},o},{})},[_t,As]=N.useState(Js),[ke,Ni]=N.useState([]),[Ms,Ct]=N.useState(!1),[Il,Ea]=N.useState(""),[Fl,qs]=N.useState("all"),[Ys,Li]=N.useState(()=>new Set([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60])),[Ra,Ds]=N.useState(()=>Date.now()),[fe,Ei]=N.useState(()=>{try{return !!JSON.parse(localStorage.getItem('taq_cur')||'null')}catch(e){return false}}),[Hs,fr]=[!1,function(){}],[Ua,$a]=["",function(){}],[Oa,Bl]=["",function(){}],[Qr,Qe]=N.useState([]),[zt,Ri]=N.useState([]),[Va,Tl]=N.useState(null),[Gs,ar]=N.useState(!1),[Kl,Ui]=N.useState(!1),[K,Ln]=N.useState({title:"",day:1,month:1,type:"event",strength:"مشهورة",strengthDisplay:"مشهورة",ownerGroupId:15,desc:"",source:"",aamalEnabled:!0,aamalList:[]}),[xs,Pt]=N.useState(!1),[cr,St]=N.useState(null),[$i,Oi]=N.useState(null),[Vi,Qi]=N.useState(""),[Qa,Ii]=N.useState(""),[Fi,Ia]=N.useState(""),[Fa,Ba]=N.useState("\uD83D\uDCC1"),[Zl,wt]=N.useState(""),[Bi,Nt]=N.useState(""),[Sc,setSc]=[0,function(){}],[Sft,setSft]=[0,function(){}],T=(o)=>{h(o),setTimeout(()=>h(null),3000)};N.useEffect(()=>{var _i=setInterval(()=>{try{var _c=!!JSON.parse(localStorage.getItem('taq_cur')||'null'); if(_c!==fe) Ei(_c);}catch(e){}},800);return ()=>clearInterval(_i)},[fe]);N.useEffect(()=>{document.title="التقويم الشامل"},[]),N.useEffect(()=>{if(typeof window<"u"&&"Notification"in window)Ql(Notification.permission);else Ql("unsupported")},[]);let js=async()=>{if(T("التنبيهات ✓"),!("Notification"in window)){T("التنبيهات غير مدعومة في هذا المتصفح");return}if(Notification.permission==="granted"){T("التنبيهات مفعلة ✓");try{new Notification("التقويم الشامل",{body:"التنبيهات تعمل بنجاح \uD83C\uDF19"})}catch{}return}if(Notification.permission==="denied"){T("تم حظر التنبيهات من إعدادات المتصفح");return}try{let o=await Notification.requestPermission();if(Ql(o),o==="granted"){T("تم تفعيل التنبيهات ✓");try{new Notification("التقويم الشامل",{body:"سيتم تذكيرك بالمناسبات القادمة"})}catch{}}else T("لم يتم تفعيل التنبيهات")}catch{T("تعذر طلب إذن التنبيهات")}},Ti=async(o)=>{
+}function ir(n){try{let e=new Intl.DateTimeFormat("en-GB",{day:"numeric",month:"numeric",timeZone:"Asia/Beirut"}).formatToParts(n),r=(t)=>parseInt(e.find((l)=>l.type===t)?.value||"0",10);return{day:r("day"),month:r("month")}}catch{return{day:n.getUTCDate(),month:n.getUTCMonth()+1}}}function va(n,e,r){let t=e.split(" "),l=[],u="";for(let i of t){let c=u?u+" "+i:i;if(n.measureText(c).width>r&&u)l.push(u),u=i;else u=c}if(u)l.push(u);return l}function kt(n){switch(n){case"wilada":return"bg-[#22c55e]";case"wafat":return"bg-[#ef4444]";case"eid":return"bg-[#facc15]";default:return"bg-[#38bdf8]"}}function Fs(n){switch(n){case"wilada":return"#22c55e";case"wafat":return"#ef4444";case"eid":return"#facc15";default:return"#38bdf8"}}function Vl(n){switch(n){case"wilada":return"مولد";case"wafat":return"شهادة";case"eid":return"عيد";default:return"حدث"}}function Ts(n){let e=n.title+" "+(n.desc||"");return e.includes("رواية")||e.includes("على رواية")}function lh(n){if(n.strength==="رواية")return{show:!0,text:"على رواية ذكرها المؤرخون",isRiwaya:!0,isWeak:!0};if(Ts(n))return{show:!0,text:"على رواية ذكرها المؤرخون",isRiwaya:!0,isWeak:!1};return{show:!0,text:n.strength,isRiwaya:!1,isWeak:!1}}function vi(n){if(n.strength==="رواية")return"على رواية ذكرها المؤرخون";return n.strength}function gi(n){if(n.strength==="صحيحة")return"bg-[#bbf7d0] text-[#14532d] border-[#4ade80]";if(n.strength==="مشهورة")return"bg-[#fef08a] text-[#713f12] border-[#facc15]";if(n.strength==="رواية")return"bg-[#ffedd5] text-[#9a3412] border-[#fb923c]";if(Ts(n))return"bg-[#ffedd5] text-[#9a3412] border-[#fb923c]";return"bg-[#fef08a] text-[#713f12] border-[#facc15]"}function ga(n){if(!n)return"";return n.replace(/\s{2,}/g," ").trim()}function uh(n){let e=n;if(e.includes("العباس"))return{domeColor:"#d4af37",baseColor:"#b48f1e",accent:"#22c55e",flag:!0,type:"karbala_abbas"};if(e.includes("الحسين")||e.includes("كربلاء")||e.includes("عاشوراء")||e.includes("الأربعين")||e.includes("أربعين"))return{domeColor:"#d4af37",baseColor:"#a67c0a",accent:"#ef4444",flag:!0,type:"karbala"};if(e.includes("الحسن المجتبى"))return{domeColor:"#cbdcc8",baseColor:"#8aa68a",accent:"#d4af37",type:"baqi"};if(e.includes("السجاد")||e.includes("زين العابدين")||e.includes("العابدين"))return{domeColor:"#d5ddd1",baseColor:"#8aa08a",type:"baqi"};if(e.includes("الباقر")||e.includes("الصادق"))return{domeColor:"#e2e8d8",baseColor:"#8fa88f",type:"baqi"};if(e.includes("الكاظم")||e.includes("الجواد"))return{domeColor:"#d4af37",baseColor:"#b8941f",twin:!0,accent:"#d4af37",type:"kazimayn"};if(e.includes("الرضا"))return{domeColor:"#d4af37",baseColor:"#1e5a7a",base2Color:"#2fb5b5",accent:"#2ec4b6",type:"mashhad"};if(e.includes("الهادي")||e.includes("العسكري"))return{domeColor:"#d4af37",baseColor:"#b8941f",type:"samarra"};if(e.includes("المهدي")||e.includes("المنتظر"))return{domeColor:"#d4af37",baseColor:"#b8941f",accent:"#f5d76e",type:"samarra_mahdi"};if(e.includes("الزهراء")||e.includes("زينب")||e.includes("أم البنين")||e.includes("معصومة")||e.includes("سكينة")||e.includes("رقية")||e.includes("خديجة")||e.includes("أم كلثوم"))return{domeColor:"#4ecdc4",baseColor:"#2a9d8f",base2Color:"#1a7a6e",accent:"#d4af37",type:"turquoise"};if(e.includes("النبي")||e.includes("محمد")||e.includes("المبعث")||e.includes("الإسراء")||e.includes("بعثة"))return{domeColor:"#2d6a4f",baseColor:"#1b4332",base2Color:"#2d6a4f",accent:"#d4af37",type:"medina"};if(e.includes("أمير المؤمنين")||e.includes("علي")&&!e.includes("زين")&&!e.includes("الأكبر")&&!e.includes("أم البنين"))return{domeColor:"#d4af37",baseColor:"#b8941f",type:"najaf"};return{domeColor:"#d4af37",baseColor:"#b8941f",type:"generic"}}function _a(n,e,r,t,l){let u=r+t*0.25,i=t*0.9,c=t*2.2,p=e-c/2,m=n.createLinearGradient(p,u,p,u+i);m.addColorStop(0,l.baseColor),m.addColorStop(1,l.base2Color||l.baseColor),n.fillStyle=m,n.fillRect(p,u,c,i),n.fillStyle=l.domeColor,n.fillRect(p-6,u-6,c+12,10),n.beginPath(),n.fillStyle=l.domeColor,n.arc(e,u,t,Math.PI,0,!1),n.lineTo(e+t,u),n.lineTo(e-t,u),n.closePath(),n.fill(),n.save(),n.globalAlpha=0.22,n.fillStyle="white",n.beginPath(),n.ellipse(e-t*0.28,u-t*0.35,t*0.32,t*0.45,-0.2,0,Math.PI*2),n.fill(),n.restore();let v=u-t-6;if(n.beginPath(),n.fillStyle=l.accent||"#d4af37",n.arc(e,v-10,6,0,Math.PI*2),n.fill(),n.fillRect(e-1.5,v-10,3,14),l.flag){let d=l.type==="karbala_abbas"?"#22c55e":"#ef4444";n.fillStyle="#cbd5e1",n.fillRect(e+6,v-22,2,26),n.fillStyle=d,n.beginPath(),n.moveTo(e+8,v-22),n.lineTo(e+34,v-18),n.lineTo(e+30,v-8),n.lineTo(e+8,v-12),n.closePath(),n.fill()}let C=c*0.22,_=i*0.62,R=e-C/2,E=u+i-_;n.fillStyle="rgba(10,31,20,0.9)",n.beginPath(),n.moveTo(R,E+_),n.lineTo(R,E+C*0.3),n.arc(e,E+C*0.3,C/2,Math.PI,0,!1),n.lineTo(R+C,E+_),n.closePath(),n.fill(),n.strokeStyle="rgba(212,175,55,0.35)",n.lineWidth=1.5,n.stroke();let V=5,J=u+i*0.35;[[-1,-0.6],[-1,-0.25],[1,-0.6],[1,-0.25]].forEach(([d,y])=>{let S=e+d*c*0.32+y*6;n.fillStyle="rgba(0,0,0,0.55)",n.beginPath(),n.arc(S,J,V,0,Math.PI*2),n.fill(),n.strokeStyle="rgba(212,175,55,0.25)",n.lineWidth=1,n.stroke()})}function ih(n,e,r,t,l){if(e.twin){let u=l*0.15;_a(n,r-u-l*0.32,t,l*0.72,e),_a(n,r+u+l*0.32,t,l*0.72,e);let i=t+l*0.72*0.25,c=l*0.65;n.fillStyle=e.baseColor,n.fillRect(r-u-l*0.32-l*0.22,i,u*2+l*1.88,c);return}_a(n,r,t,l,e)}function wa(){let[n,e]=N.useState(""),[r,t]=N.useState(""),[l,u]=N.useState(null),[i,c]=N.useState(1448),[p,m]=N.useState(2),[v,C]=N.useState(null),_$_surgical_patch=(window._Setters={setYear:c,setMonth:m,setDay:C,setFullDay:u,setYearFull:(y)=>c(y),setMonthFull:(mo)=>m(mo),setFullObject:(obj)=>{try{c(obj.hy);m(obj.hm);C(obj.hd);if(obj.hd&&obj.hm&&obj.hy)u(obj);}catch(e){}},setYearMonth:(yy,mm)=>{try{c(yy);m(mm);}catch(e){}},updateFromFinal:(obj)=>{try{c(obj.hy);m(obj.hm);C(obj.hd);u(obj);if(window.FINAL_HIJRI)window.FINAL_HIJRI=obj;}catch(e){}}},window._Setters._reactStates={i:i,p:p,v:v},window.addEventListener&&!window._taqweem_listener_added&&(window._taqweem_listener_added=!0,window.addEventListener('taqweem_final_updated',function(e){try{var obj=e.detail&&e.detail.obj?e.detail.obj:e.detail;if(obj&&obj.hy&&obj.hm&&obj.hd){c(obj.hy);m(obj.hm);C(obj.hd);u(obj);}}catch(err){}}),window.addEventListener('_final_updated',function(e){try{var obj=e.detail&&e.detail.obj?e.detail.obj:e.detail;if(obj&&obj.hy&&obj.hm&&obj.hd){c(obj.hy);m(obj.hm);C(obj.hd);u(obj);}}catch(err){}}))),[_,R]=N.useState(""),[E,V]=N.useState("all"),[J,h]=N.useState(null),[d,y]=N.useState(!1),[networkDay,setNetworkDay]=N.useState(null),[showNetwork,setShowNetwork]=N.useState(!1),[S,O]=N.useState(!1),[U,I]=N.useState(0),[B,j]=N.useState(null),[Z,Wn]=N.useState(!1),[Ci,or]=N.useState(!1),[Ws,Ql]=N.useState("default"),[zi,Na]=N.useState(null),[Or,Vr]=N.useState(null),[Xs,vt]=[!1,function(){}],[Pi,gt]=[!1,function(){}],[Cn,La]=[0,function(){}],[rn,Si]=N.useState("hijri"),[he,Oe]=N.useState(2025),[zn,ie]=N.useState(1),[Xn,Ve]=N.useState(null),[oe,wi]=N.useState(null),[oh,fh]=N.useState(!1),Js={master:!0,items:ha.reduce((o,f)=>{return o[f.key]={oneDay:!0,twoDay:!0},o},{})},[_t,As]=N.useState(Js),[ke,Ni]=N.useState([]),_taq_expose_ke=(function(){try{window._Setters=window._Setters||{};window._Setters.keSetter=Ni;window._Setters.keGetter=ke;window._Setters.addReminder=function(id){try{Ni(function(k){return k.indexOf(id)===-1?[...k,id]:k;});}catch(e){}};window._Setters.removeReminder=function(id){try{Ni(function(k){return k.filter(function(x){return x!==id;});});}catch(e){}};window.__TAQ_ADD_REMINDER__=window._Setters.addReminder;window.__TAQ_REMOVE_REMINDER__=window._Setters.removeReminder;}catch(e){}return null;})(),[Ms,Ct]=N.useState(!1),[Il,Ea]=N.useState(""),[Fl,qs]=N.useState("all"),[Ys,Li]=N.useState(()=>new Set([1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60])),[Ra,Ds]=N.useState(()=>Date.now()),[fe,Ei]=N.useState(()=>{try{return !!JSON.parse(localStorage.getItem('taq_cur')||'null')}catch(e){return false}}),[Hs,fr]=[!1,function(){}],[Ua,$a]=["",function(){}],[Oa,Bl]=["",function(){}],[Qr,Qe]=N.useState([]),[zt,Ri]=N.useState([]),[Va,Tl]=N.useState(null),[Gs,ar]=N.useState(!1),[Kl,Ui]=N.useState(!1),[K,Ln]=N.useState({title:"",day:1,month:1,type:"event",strength:"مشهورة",strengthDisplay:"مشهورة",ownerGroupId:15,desc:"",source:"",aamalEnabled:!0,aamalList:[]}),[xs,Pt]=N.useState(!1),[cr,St]=N.useState(null),[$i,Oi]=N.useState(null),[Vi,Qi]=N.useState(""),[Qa,Ii]=N.useState(""),[Fi,Ia]=N.useState(""),[Fa,Ba]=N.useState("\uD83D\uDCC1"),[Zl,wt]=N.useState(""),[Bi,Nt]=N.useState(""),[Sc,setSc]=[0,function(){}],[Sft,setSft]=[0,function(){}],T=(o)=>{h(o),setTimeout(()=>h(null),3000)};N.useEffect(()=>{var _i=setInterval(()=>{try{var _c=!!JSON.parse(localStorage.getItem('taq_cur')||'null'); if(_c!==fe) Ei(_c);}catch(e){}},800);return ()=>clearInterval(_i)},[fe]);N.useEffect(()=>{document.title="التقويم الشامل"},[]),N.useEffect(()=>{if(typeof window<"u"&&"Notification"in window)Ql(Notification.permission);else Ql("unsupported")},[]);let js=async()=>{if(T("التنبيهات ✓"),!("Notification"in window)){T("التنبيهات غير مدعومة في هذا المتصفح");return}if(Notification.permission==="granted"){T("التنبيهات مفعلة ✓");try{new Notification("التقويم الشامل",{body:"التنبيهات تعمل بنجاح \uD83C\uDF19"})}catch{}return}if(Notification.permission==="denied"){T("تم حظر التنبيهات من إعدادات المتصفح");return}try{let o=await Notification.requestPermission();if(Ql(o),o==="granted"){T("تم تفعيل التنبيهات ✓");try{new Notification("التقويم الشامل",{body:"سيتم تذكيرك بالمناسبات القادمة"})}catch{}}else T("لم يتم تفعيل التنبيهات")}catch{T("تعذر طلب إذن التنبيهات")}},Ti=async(o)=>{
   if(ke.includes(o.id)){
     Ni((k)=>k.filter((z)=>z!==o.id));
     try{
@@ -4562,19 +4562,30 @@ button.old-export-hidden {
 </script>
 
 
-<!-- GOLDEN PICKER + SMART UPDATE v3 -->
-<div id="reminder-picker-overlay" style="display:none;position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.75);align-items:center;justify-content:center;padding:16px">
-  <div style="background:#0f2215;border:1px solid rgba(212,175,55,0.3);border-radius:20px;max-width:380px;width:100%;overflow:hidden">
+<!-- GOLDEN PICKER + SMART UPDATE v4 - FIXED: خارج التحديث الحي + وقت يدوي -->
+<div id="reminder-picker-overlay" style="display:none;position:fixed;inset:0;z-index:9999999;background:rgba(0,0,0,0.8);align-items:center;justify-content:center;padding:16px">
+  <div style="background:#0f2215;border:1px solid rgba(212,175,55,0.35);border-radius:20px;max-width:400px;width:100%;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.6)">
     <div style="padding:16px 18px;border-bottom:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;align-items:center">
       <div style="font-weight:900;color:#d4af37;font-size:15px">⏰ وقت التذكير</div>
-      <button onclick="closeReminderPicker()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.08);border:none;color:#fff">✕</button>
+      <button onclick="closeReminderPicker()" style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.08);border:none;color:#fff;font-size:16px">✕</button>
     </div>
-    <div style="padding:12px">
-      <div id="reminder-event-title" style="text-align:center;color:#e8d9a3;font-weight:800;font-size:13px;margin:6px 0 12px;padding:8px;background:rgba(212,175,55,0.08);border-radius:10px"></div>
+    <div style="padding:14px">
+      <div id="reminder-event-title" style="text-align:center;color:#e8d9a3;font-weight:800;font-size:13px;margin:0 0 14px;padding:10px;background:rgba(212,175,55,0.08);border-radius:10px;border:1px solid rgba(212,175,55,0.12)"></div>
+      
+      <!-- وقت يدوي -->
+      <div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:12px;margin-bottom:12px">
+        <div style="color:#d4af37;font-weight:700;font-size:12px;margin-bottom:8px">⏱️ تحديد يدوي (اختياري)</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="reminder-custom-time" type="time" value="09:00" style="flex:1;padding:10px;border-radius:8px;border:1px solid rgba(212,175,55,0.3);background:#0a1f14;color:#fff;font-size:14px;direction:ltr">
+          <span style="color:#9ca3af;font-size:11px">الساعة</span>
+        </div>
+        <div style="color:#6b7280;font-size:10px;margin-top:6px">إذا حددت وقت، سيُستخدم بدل 9ص/8ص</div>
+      </div>
+
       <div style="display:flex;flex-direction:column;gap:8px">
-        <button onclick="confirmReminder('1day9am')" style="padding:13px;border-radius:10px;border:1px solid rgba(212,175,55,0.25);background:rgba(212,175,55,0.12);color:#f5d76e;font-weight:700;font-size:13px;text-align:right">📅 قبل يوم - 9 صباحاً</button>
-        <button onclick="confirmReminder('2days9am')" style="padding:13px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);color:#e5e7eb;font-weight:600;font-size:13px;text-align:right">📅 قبل يومين - 9 صباحاً</button>
-        <button onclick="confirmReminder('sameDay')" style="padding:13px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);color:#e5e7eb;font-weight:600;font-size:13px;text-align:right">☀️ يوم المناسبة - 8 صباحاً</button>
+        <button onclick="confirmReminder('1day9am')" style="padding:13px;border-radius:10px;border:1px solid rgba(212,175,55,0.3);background:rgba(212,175,55,0.15);color:#f5d76e;font-weight:700;font-size:13px;text-align:right">📅 قبل يوم - <span class="btn-time">9 صباحاً</span></button>
+        <button onclick="confirmReminder('2days9am')" style="padding:13px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);color:#e5e7eb;font-weight:600;font-size:13px;text-align:right">📅 قبل يومين - <span class="btn-time">9 صباحاً</span></button>
+        <button onclick="confirmReminder('sameDay')" style="padding:13px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.04);color:#e5e7eb;font-weight:600;font-size:13px;text-align:right">☀️ يوم المناسبة - <span class="btn-time">8 صباحاً</span></button>
       </div>
     </div>
   </div>
@@ -4582,50 +4593,140 @@ button.old-export-hidden {
 <script>
 (function(){
   var _cur=null;
-  window.showReminderPicker=function(o){ _cur=o; var el=document.getElementById('reminder-picker-overlay'); var t=document.getElementById('reminder-event-title'); if(t) t.textContent=o.title; if(el) el.style.display='flex'; };
+  function getCustomTimeOrDefault(defH, defM){
+    try{
+      var inp=document.getElementById('reminder-custom-time');
+      if(inp && inp.value){
+        var parts=inp.value.split(':');
+        var h=parseInt(parts[0],10); var m=parseInt(parts[1]||'0',10);
+        if(!isNaN(h) && !isNaN(m)){ return {h:h,m:m, isCustom:true}; }
+      }
+    }catch(e){}
+    return {h:defH,m:defM,isCustom:false};
+  }
+  function updateBtnTimes(){
+    try{
+      var t=getCustomTimeOrDefault(9,0);
+      var label = t.isCustom ? (t.h+':'+String(t.m).padStart(2,'0')) : '9 صباحاً';
+      var label2 = t.isCustom ? (t.h+':'+String(t.m).padStart(2,'0')) : '8 صباحاً';
+      document.querySelectorAll('#reminder-picker-overlay .btn-time').forEach(function(el, idx){
+        el.textContent = idx===2 ? label2 : label;
+      });
+    }catch(e){}
+  }
+  window.showReminderPicker=function(o){ 
+    _cur=o; 
+    var el=document.getElementById('reminder-picker-overlay'); 
+    var t=document.getElementById('reminder-event-title'); 
+    if(t) t.textContent=o.title||o.name||'تذكير'; 
+    if(el){ 
+      el.style.display='flex'; 
+      // تأكد انها فوق كل شي وبرا التحديث الحي
+      document.body.appendChild(el);
+      updateBtnTimes();
+    }
+    // ربط input time
+    try{
+      var inp=document.getElementById('reminder-custom-time');
+      if(inp && !inp._bound){ inp._bound=true; inp.addEventListener('change', updateBtnTimes); inp.addEventListener('input', updateBtnTimes); }
+    }catch(e){}
+  };
   window.closeReminderPicker=function(){ var el=document.getElementById('reminder-picker-overlay'); if(el) el.style.display='none'; _cur=null; };
   window.confirmReminder=async function(type){
-    if(!_cur) return;
+    if(!_cur){ console.log('no _cur'); return; }
     var ev=_cur;
+    console.log('confirmReminder', type, ev);
     var when=new Date(); var label='';
-    if(type==='1day9am'){ when.setDate(when.getDate()+1); when.setHours(9,0,0,0); label='قبل يوم 9ص'; }
-    else if(type==='2days9am'){ when.setDate(when.getDate()+2); when.setHours(9,0,0,0); label='قبل يومين 9ص'; }
-    else { when.setHours(8,0,0,0); label='يوم المناسبة 8ص'; if(when<new Date()) when.setDate(when.getDate()+1); }
-    try{
-      if(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications){
-        var LN=window.Capacitor.Plugins.LocalNotifications;
-        try{ var p=await LN.checkPermissions(); if(p.display!=='granted'){ await LN.requestPermissions(); } }catch(e){}
-        try{ await LN.createChannel({id:"taqweem-reminders",name:"تذكيرات",importance:5,visibility:1,sound:"default",vibration:true}); }catch(e){}
-        var nid=parseInt(String(ev.id).slice(-6))||Math.floor(Math.random()*800000)+100000;
-        await LN.schedule({notifications:[{title:"تذكير: "+ev.title, body:label+" - "+(ev.desc||'').slice(0,70), id:nid, schedule:{at:when.toISOString()}, smallIcon:"ic_launcher", channelId:"taqweem-reminders"}]});
-      }
-    }catch(e){ console.log('sched err', e); }
-    try{ if(window.Ni){ /* will be handled via closure below */ } }catch(e){}
-    // حفظ id للتذكير في localStorage والـ state
+    var ct=null;
+    if(type==='1day9am'){ ct=getCustomTimeOrDefault(9,0); when.setDate(when.getDate()+1); when.setHours(ct.h,ct.m,0,0); label='قبل يوم '+(ct.isCustom? ct.h+':'+String(ct.m).padStart(2,'0') : '9ص'); }
+    else if(type==='2days9am'){ ct=getCustomTimeOrDefault(9,0); when.setDate(when.getDate()+2); when.setHours(ct.h,ct.m,0,0); label='قبل يومين '+(ct.isCustom? ct.h+':'+String(ct.m).padStart(2,'0') : '9ص'); }
+    else { ct=getCustomTimeOrDefault(8,0); when.setHours(ct.h,ct.m,0,0); label='يوم المناسبة '+(ct.isCustom? ct.h+':'+String(ct.m).padStart(2,'0') : '8ص'); if(when<new Date()) when.setDate(when.getDate()+1); }
+    
+    // 1- احفظ فوراً قبل الجدولة حتى لو فشلت الاشعارات
     try{
       var ids=JSON.parse(localStorage.getItem('taq_reminder_ids')||'[]');
       if(ids.indexOf(ev.id)===-1){ ids.push(ev.id); localStorage.setItem('taq_reminder_ids', JSON.stringify(ids)); }
-      // تحديث الـ state عبر window event - التطبيق يراقب localStorage؟
+      // احفظ تفاصيل الوقت
+      var details=JSON.parse(localStorage.getItem('taq_reminder_details')||'{}');
+      details[ev.id]={title:ev.title, when:when.toISOString(), label:label, type:type, hour:ct.h, minute:ct.m};
+      localStorage.setItem('taq_reminder_details', JSON.stringify(details));
       if(window.__TAQ_ADD_REMINDER__) window.__TAQ_ADD_REMINDER__(ev.id);
       else {
-        // محاولة مباشرة: استدعاء Ni من الـ window إذا كشفناه
         try{ var evt=new CustomEvent('taq_add_reminder',{detail:{id:ev.id}}); window.dispatchEvent(evt); }catch(e){}
       }
-    }catch(e){}
+      console.log('saved id', ev.id);
+    }catch(e){ console.log('save err', e); }
+    
+    // 2- اغلق فوراً ليشعر المستخدم انه اخذ
     closeReminderPicker();
     if(window.T) window.T("تم التذكير: "+label+" ✓");
-    // لا نعمل reload - نحدث الـ UI يدوياً
-    try{ setTimeout(function(){ if(window.location) { /* trigger re-render by toggling */ var btn=document.querySelector('[data-reminder="'+ev.id+'"]'); if(btn) btn.textContent='✓ تم التفعيل'; } },300); }catch(e){}
+    else { try{ alert("تم التذكير: "+label+" ✓\n"+ev.title); }catch(e){} }
+    try{ setTimeout(function(){ var btn=document.querySelector('[data-reminder="'+ev.id+'"]'); if(btn) btn.textContent='✓ تم التفعيل'; },300); }catch(e){}
+    
+    // 3- جدولة الاشعار بالخلفية (لا تؤخر الاغلاق)
+    try{
+      if(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications){
+        var LN=window.Capacitor.Plugins.LocalNotifications;
+        try{ var p=await LN.checkPermissions(); if(p.display!=='granted'){ var r=await LN.requestPermissions(); if(r.display!=='granted'){ console.log('perm denied'); return; } } }catch(e){}
+        try{ await LN.createChannel({id:"taqweem-reminders",name:"تذكيرات",importance:5,visibility:1,sound:"default",vibration:true}); }catch(e){}
+        var nid=parseInt(String(ev.id).slice(-6))||Math.floor(Math.random()*800000)+100000;
+        if(isNaN(nid)) nid=Math.floor(Math.random()*800000)+100000;
+        var res=await LN.schedule({notifications:[{title:"تذكير: "+ev.title, body:label+" - "+(ev.desc||'').slice(0,70), id:nid, schedule:{at:when.toISOString()}, smallIcon:"ic_launcher", channelId:"taqweem-reminders"}]});
+        console.log('scheduled', res);
+      } else {
+        // ويب fallback
+        if("Notification" in window && Notification.permission==="granted"){
+          console.log('web notif would fire at', when);
+        }
+      }
+    }catch(e){ console.log('sched err', e); }
   };
-  // listener للـ custom event لإضافة الـ id للـ ke
   window.addEventListener('taq_add_reminder', function(e){
     try{
-      // نبحث عن Ni في الـ closure عبر الـ setter العام إن وجد
       if(window._Setters && window._Setters.keSetter){ window._Setters.keSetter(function(k){ return k.indexOf(e.detail.id)===-1 ? [...k, e.detail.id] : k; }); }
     }catch(err){}
   });
   var ov=document.getElementById('reminder-picker-overlay');
   if(ov) ov.addEventListener('click', function(e){ if(e.target===ov) closeReminderPicker(); });
+
+  // FIX: اجعل كل ازرار ذكرني في الصفحة تفتح الـ picker مباشرة حتى لو كانت داخل التحديث الحي
+  function patchReminderButtons(){
+    try{
+      // اذا React بيعيد الرسم، نراقب
+      var observer=new MutationObserver(function(){
+        document.querySelectorAll('button').forEach(function(btn){
+          var txt=(btn.textContent||'').trim();
+          // زر ذكرني الاصلي
+          if(txt.includes('ذكرني') && !btn._reminderPatched){
+            // لا نمنع الافتراضي، فقط نضيف اذا ما فيه onclick
+            if(!btn.getAttribute('onclick') || btn.getAttribute('onclick').indexOf('showReminderPicker')===-1){
+              // حاول نلقط البيانات من البطاقة
+              btn._reminderPatched=true;
+              var orig=btn.onclick;
+              btn.addEventListener('click', function(e){
+                // اذا الـ picker ما فتح خلال 300ms، افتحه انت
+                setTimeout(function(){
+                  var el=document.getElementById('reminder-picker-overlay');
+                  if(el && el.style.display==='none'){
+                    // حاول استخراج العنوان من البطاقة القريبة
+                    var card=btn.closest('[class*="card"]')||btn.closest('div');
+                    var titleEl=card? card.querySelector('[class*="title"], h3, h4') : null;
+                    var title=titleEl? titleEl.textContent : 'مناسبة';
+                    // id من data
+                    var evId=btn.getAttribute('data-reminder') || btn.getAttribute('data-id') || Date.now();
+                    if(window.showReminderPicker) window.showReminderPicker({id:evId, title:title, desc:''});
+                  }
+                },200);
+              }, true);
+            }
+          }
+        });
+      });
+      observer.observe(document.body,{childList:true, subtree:true});
+    }catch(e){}
+  }
+  setTimeout(patchReminderButtons,1000);
+  document.addEventListener('DOMContentLoaded', function(){ setTimeout(patchReminderButtons,1500); });
 })();
 </script>
 <script>
