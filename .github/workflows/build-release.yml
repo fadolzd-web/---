@@ -113,13 +113,37 @@ jobs:
           open(f"{v26_path}/ic_launcher.xml","w").write(adaptive_xml)
           open(f"{v26_path}/ic_launcher_round.xml","w").write(adaptive_xml)
           print("Created adaptive xml pointing to foreground")
-          # Ensure ic_launcher_background color exists
+          # Ensure ic_launcher_background color exists - FIX duplicate error
+          # Capacitor already creates ic_launcher_background.xml, we must delete duplicate and keep only one
+          import glob
+          # Remove any existing ic_launcher_background files that cause duplicate
+          for dup in glob.glob("android/app/src/main/res/values/ic_launcher_background.xml"):
+              try:
+                  os.remove(dup)
+                  print(f"Removed duplicate {dup}")
+              except: pass
+          for dup in glob.glob("android/app/src/main/res/values/ic_launcher_background.xml*"):
+              try:
+                  if os.path.exists(dup):
+                      os.remove(dup)
+                      print(f"Removed {dup}")
+              except: pass
+          # Also remove any file that defines ic_launcher_background
+          # Search all xml in values for duplicate
+          for vf in glob.glob("android/app/src/main/res/values/*.xml"):
+              if vf.endswith("colors.xml"):
+                  continue
+              try:
+                  txt=open(vf,"r",encoding="utf-8").read()
+                  if "ic_launcher_background" in txt and "ic_launcher_foreground" not in txt.lower():
+                      # This is a background color file, remove it
+                      os.remove(vf)
+                      print(f"Removed conflicting {vf}")
+              except: pass
           os.makedirs("android/app/src/main/res/values", exist_ok=True)
-          # Add color if not exists
           colors_path="android/app/src/main/res/values/colors.xml"
-          # Ensure colors.xml is valid
           if not os.path.exists(colors_path):
-              open(colors_path,"w").write('<resources><color name="ic_launcher_background">#0a1f14</color></resources>')
+              open(colors_path,"w",encoding="utf-8").write('<resources><color name="ic_launcher_background">#0a1f14</color></resources>')
           else:
               try:
                   txt=open(colors_path,"r",encoding="utf-8").read()
@@ -131,7 +155,7 @@ jobs:
                       open(colors_path,"w",encoding="utf-8").write(txt)
               except Exception as e:
                   print(f"colors.xml fix failed: {e}")
-                  open(colors_path,"w").write('<resources><color name="ic_launcher_background">#0a1f14</color></resources>')
+                  open(colors_path,"w",encoding="utf-8").write('<resources><color name="ic_launcher_background">#0a1f14</color></resources>')
           # 2. Create launcher icons in all mipmap folders
           sizes={"mipmap-mdpi":48,"mipmap-hdpi":72,"mipmap-xhdpi":96,"mipmap-xxhdpi":144,"mipmap-xxxhdpi":192}
           for folder,size in sizes.items():
