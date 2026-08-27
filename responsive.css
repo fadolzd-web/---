@@ -1,0 +1,30 @@
+
+/* responsive.css - يتجاوب مع كل الشاشات - من برا */
+html{font-size:16px}
+body{overflow-x:hidden!important;width:100%!important;max-width:100vw!important;margin:0!important;background:#0a1f14}
+#root{width:100%!important;max-width:100vw!important;overflow-x:hidden!important;min-height:100vh!important;background:#0a1f14}
+
+/* Qibla */
+.qibla-overlay{padding:8px!important;box-sizing:border-box}
+.qibla-box{width:96vw!important;max-width:420px!important;max-height:92vh!important;margin:0 auto!important;box-sizing:border-box}
+.qibla-body iframe{width:100%!important;height:75vh!important;min-height:60vh!important;border:0!important}
+
+/* Small phones 320px */
+@media (max-width:360px){
+  html{font-size:14px}
+  .qibla-box{width:98vw!important}
+  #root{padding:0 4px!important}
+}
+
+/* Large phones 410px+ */
+@media (min-width:410px){
+  html{font-size:17px}
+}
+
+/* Tablet */
+@media (min-width:768px){
+  #root{max-width:480px!important;margin:0 auto!important;border-left:1px solid rgba(255,255,255,0.05);border-right:1px solid rgba(255,255,255,0.05)}
+}
+
+/* Fix images */
+img,iframe{max-width:100%!important;box-sizing:border-box}

@@ -1850,6 +1850,8 @@ function getUserCitiesUnified(){
 }
 function getUserCities(){ return getUserCitiesUnified(); }
 function loadCities(){
+ // الأولوية للمدن المضمنة داخل الكود - بدون ملف خارجي
+ if(window.MASTER_CITIES && window.MASTER_CITIES.length>100) return window.MASTER_CITIES;
  var cached=getCachedMaster();
  if(cached && cached.length>100) return cached;
  var user=getUserCitiesUnified();
@@ -1873,6 +1875,7 @@ function saveCities(arr){
 }
 // دوال موحدة عالمية يستخدمها النظامان
 window.getUnifiedCities = function(){
+ if(window.MASTER_CITIES && window.MASTER_CITIES.length>100) return window.MASTER_CITIES;
  var master=getCachedMaster();
  if(master && master.length>100) return master;
  if(window._masterCities && window._masterCities.length>100) return window._masterCities;
@@ -1883,7 +1886,7 @@ window.getUnifiedCities = function(){
 window.saveUnifiedCities = function(arr){ saveCities(arr); };
 window.getUserCitiesUnified = getUserCitiesUnified;
 
-window._sayeghCities=loadCities();
+window._sayeghCities=(window.MASTER_CITIES && window.MASTER_CITIES.length>100)?window.MASTER_CITIES:loadCities();
 window._editingOldCode=null;
 window._masterCities=window._sayeghCities;
 window._selectedSayeghCode=window._sayeghCities[0]?.code||'236';
@@ -1898,6 +1901,11 @@ async function fetchMasterCities(){
    if(window._prayerNotifyMaster) window._prayerNotifyMaster(cached);
    if(window.renderSayeghCities) window.renderSayeghCities();
    return cached;
+  }
+  // تم تعطيل الاعتماد على ملف خارجي - المدن مضمنة
+  if(window.MASTER_CITIES && window.MASTER_CITIES.length>0){
+   console.log('✅ [مضمن] استخدام '+window.MASTER_CITIES.length+' مدينة من داخل الكود - بدون ملف خارجي');
+   return window.MASTER_CITIES;
   }
   var res=await fetch(MASTER_CITIES_URL+'?v='+Date.now());
   if(!res.ok) throw new Error('fetch failed');
