@@ -1,4 +1,4 @@
-name: Build RELEASE - FINAL BG + GPS + Compass
+name: Build RELEASE - FINAL SIGNED
 on: [push]
 jobs:
   build:
@@ -31,13 +31,12 @@ jobs:
         run: |
           npx cap add android
           npx cap sync android
-      - name: Permissions + App Name in Settings
+      - name: Permissions + App Name
         run: |
           python3 << 'PY'
           import os
           mf="android/app/src/main/AndroidManifest.xml"
           c=open(mf,"r",encoding="utf-8").read()
-          # remove old perms to avoid dup
           lines=[]
           for l in c.splitlines():
               if any(x in l for x in ["ACCESS_FINE_LOCATION","ACCESS_COARSE_LOCATION","ACCESS_BACKGROUND_LOCATION","POST_NOTIFICATIONS","SCHEDULE_EXACT_ALARM","USE_EXACT_ALARM","RECEIVE_BOOT_COMPLETED","WAKE_LOCK","VIBRATE","FOREGROUND_SERVICE"]):
@@ -59,15 +58,12 @@ jobs:
               <uses-feature android:name="android.hardware.location.gps" android:required="false" />
               <uses-feature android:name="android.hardware.sensor.compass" android:required="false" />
           '''
-          # force app label = التقويم الشامل so it shows in permission screen
           c=c.replace('android:label="@string/app_name"','android:label="التقويم الشامل"')
           if 'android:label="التقويم الشامل"' not in c:
               c=c.replace('<application', '<application android:label="التقويم الشامل"')
           c=c.replace("<application",perms+"\n    <application")
           open(mf,"w",encoding="utf-8").write(c)
-          print("manifest patched with compass + app name")
-
-          # strings.xml
+          print("manifest patched")
           sp="android/app/src/main/res/values/strings.xml"
           if os.path.exists(sp):
               s=open(sp,"r",encoding="utf-8").read()
@@ -75,14 +71,13 @@ jobs:
               if "التقويم الشامل" not in s:
                   s=s.replace("<string name=\"app_name\">","<string name=\"app_name\">التقويم الشامل</string><string name=\"old\">")
               open(sp,"w",encoding="utf-8").write(s)
-          # ensure beep.wav in raw for notification sound
           os.makedirs("android/app/src/main/res/raw", exist_ok=True)
           if os.path.exists("beep.wav"):
               import shutil; shutil.copy("beep.wav","android/app/src/main/res/raw/beep.wav")
           elif os.path.exists("www/beep.wav"):
               import shutil; shutil.copy("www/beep.wav","android/app/src/main/res/raw/beep.wav")
           PY
-      - name: Icon fix + Splash - FINAL (removes adaptive xml)
+      - name: Icon + Splash FIX duplicate
         run: |
           python3 << 'PY'
           from PIL import Image
@@ -96,15 +91,10 @@ jobs:
               print("NO icon.png found!")
               exit(0)
           im=Image.open(icon_path).convert("RGBA")
-          print(f"Using icon {icon_path} size {im.size}")
-          # 1. Remove adaptive icon xmls that override PNG - but recreate as proper adaptive that uses our PNG
-          # Delete v26 folder entirely to force fallback to PNG, then recreate adaptive xml pointing to our PNG
           v26_path="android/app/src/main/res/mipmap-anydpi-v26"
           if os.path.exists(v26_path):
               shutil.rmtree(v26_path)
-              print(f"Removed {v26_path}")
           os.makedirs(v26_path, exist_ok=True)
-          # Create adaptive icon xml that uses ic_launcher_foreground.png and background color
           adaptive_xml='''<?xml version="1.0" encoding="utf-8"?>
           <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
               <background android:drawable="@color/ic_launcher_background"/>
@@ -112,38 +102,25 @@ jobs:
           </adaptive-icon>'''
           open(f"{v26_path}/ic_launcher.xml","w").write(adaptive_xml)
           open(f"{v26_path}/ic_launcher_round.xml","w").write(adaptive_xml)
-          print("Created adaptive xml pointing to foreground")
-          # Ensure ic_launcher_background color exists - FIX duplicate error
-          # Capacitor already creates ic_launcher_background.xml, we must delete duplicate and keep only one
-          import glob
-          # Remove any existing ic_launcher_background files that cause duplicate
+          # FIX duplicate resources - delete ic_launcher_background.xml files
           for dup in glob.glob("android/app/src/main/res/values/ic_launcher_background.xml"):
-              try:
-                  os.remove(dup)
-                  print(f"Removed duplicate {dup}")
+              try: os.remove(dup)
               except: pass
           for dup in glob.glob("android/app/src/main/res/values/ic_launcher_background.xml*"):
               try:
-                  if os.path.exists(dup):
-                      os.remove(dup)
-                      print(f"Removed {dup}")
+                  if os.path.exists(dup): os.remove(dup)
               except: pass
-          # Also remove any file that defines ic_launcher_background
-          # Search all xml in values for duplicate
           for vf in glob.glob("android/app/src/main/res/values/*.xml"):
-              if vf.endswith("colors.xml"):
-                  continue
+              if vf.endswith("colors.xml"): continue
               try:
                   txt=open(vf,"r",encoding="utf-8").read()
                   if "ic_launcher_background" in txt and "ic_launcher_foreground" not in txt.lower():
-                      # This is a background color file, remove it
                       os.remove(vf)
-                      print(f"Removed conflicting {vf}")
               except: pass
           os.makedirs("android/app/src/main/res/values", exist_ok=True)
           colors_path="android/app/src/main/res/values/colors.xml"
           if not os.path.exists(colors_path):
-              open(colors_path,"w",encoding="utf-8").write('<resources><color name="ic_launcher_background">#0a1f14</color></resources>')
+              open(colors_path,"w").write('<resources><color name="ic_launcher_background">#0a1f14</color></resources>')
           else:
               try:
                   txt=open(colors_path,"r",encoding="utf-8").read()
@@ -153,10 +130,8 @@ jobs:
                       else:
                           txt+='\n<color name="ic_launcher_background">#0a1f14</color>\n</resources>'
                       open(colors_path,"w",encoding="utf-8").write(txt)
-              except Exception as e:
-                  print(f"colors.xml fix failed: {e}")
-                  open(colors_path,"w",encoding="utf-8").write('<resources><color name="ic_launcher_background">#0a1f14</color></resources>')
-          # 2. Create launcher icons in all mipmap folders
+              except:
+                  open(colors_path,"w").write('<resources><color name="ic_launcher_background">#0a1f14</color></resources>')
           sizes={"mipmap-mdpi":48,"mipmap-hdpi":72,"mipmap-xhdpi":96,"mipmap-xxhdpi":144,"mipmap-xxxhdpi":192}
           for folder,size in sizes.items():
               p=f"android/app/src/main/res/{folder}"
@@ -169,8 +144,6 @@ jobs:
               inner_im=im.resize((inner,inner), Image.LANCZOS)
               fg.paste(inner_im, ((fg_size-inner)//2,(fg_size-inner)//2), inner_im)
               fg.save(f"{p}/ic_launcher_foreground.png","PNG")
-              print(f"Icons created in {folder}")
-          # 3. Splash
           bg_color=(10,31,20)
           splash_w, splash_h = 1080, 1920
           splash=Image.new("RGB", (splash_w, splash_h), bg_color)
@@ -185,12 +158,8 @@ jobs:
               p=f"android/app/src/main/res/{d}"
               os.makedirs(p,exist_ok=True)
               splash.save(f"{p}/splash.png","PNG")
-              print(f"Splash {d}/splash.png")
-          if not os.path.exists("www/icon.png"):
-              try: shutil.copy(icon_path,"www/icon.png")
-              except: pass
           PY
-      - name: MainActivity - FIX GPS permission + Compass
+      - name: MainActivity - FIX GPS true,true
         run: |
           cat > android/app/src/main/java/com/fadol/taqweem/MainActivity.java <<'JAVA'
           package com.fadol.taqweem;
@@ -216,52 +185,50 @@ jobs:
                   w.setWebChromeClient(new WebChromeClient(){
                       @Override
                       public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback){
-                          // FIX: true,true = allow and remember, not false
                           callback.invoke(origin, true, true);
-                      }
-                      @Override
-                      public void onGeolocationPermissionsHidePrompt(){
-                          super.onGeolocationPermissionsHidePrompt();
                       }
                   });
               }
           }
           JAVA
-      - name: Decode keystore
+      - name: Generate or Decode keystore - SIGNED APK FIX
         run: |
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "Using secrets keystore"
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+          else
+            echo "No secrets - generating keystore to fix 'package invalid'"
+            keytool -genkey -v -keystore android/app/release.keystore -alias taqweem -keyalg RSA -keysize 2048 -validity 10000 -storepass taqweem123 -keypass taqweem123 -dname "CN=Taqweem, OU=Taqweem, O=Taqweem, L=Tripoli, S=North, C=LB"
+            echo "KEYSTORE_PASSWORD=taqweem123" >> $GITHUB_ENV
+            echo "KEY_ALIAS=taqweem" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=taqweem123" >> $GITHUB_ENV
           fi
-      - name: Build RELEASE APK + AAB
+          ls -lh android/app/release.keystore
+      - name: Build SIGNED RELEASE
         run: |
           cd android
           chmod +x gradlew
-          # Always build APK first (this is the release)
-          if [ -f app/release.keystore ]; then
-            ./gradlew assembleRelease --info || ./gradlew assembleRelease
-          else
-            echo "Building unsigned APK"
-            ./gradlew assembleRelease --info || ./gradlew assembleRelease
-          fi
-          echo "=== APK BUILT ==="
-          ls -lh app/build/outputs/apk/release/ || true
-          # Now try AAB (may fail if no signing, but try)
-          if [ -f app/release.keystore ]; then
-            ./gradlew bundleRelease --info || ./gradlew bundleRelease || true
-          else
-            ./gradlew bundleRelease --info || ./gradlew bundleRelease || true
-          fi
-          echo "=== AAB BUILT ==="
+          STORE_PASS=${{ secrets.KEYSTORE_PASSWORD }}
+          if [ -z "$STORE_PASS" ]; then STORE_PASS=${{ env.KEYSTORE_PASSWORD }}; fi
+          if [ -z "$STORE_PASS" ]; then STORE_PASS=taqweem123; fi
+          ALIAS=${{ secrets.KEY_ALIAS }}
+          if [ -z "$ALIAS" ]; then ALIAS=${{ env.KEY_ALIAS }}; fi
+          if [ -z "$ALIAS" ]; then ALIAS=taqweem; fi
+          KEY_PASS=${{ secrets.KEY_PASSWORD }}
+          if [ -z "$KEY_PASS" ]; then KEY_PASS=${{ env.KEY_PASSWORD }}; fi
+          if [ -z "$KEY_PASS" ]; then KEY_PASS=taqweem123; fi
+          ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=$STORE_PASS -Pandroid.injected.signing.key.alias=$ALIAS -Pandroid.injected.signing.key.password=$KEY_PASS
+          ls -lh app/build/outputs/apk/release/
+          ./gradlew bundleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=$STORE_PASS -Pandroid.injected.signing.key.alias=$ALIAS -Pandroid.injected.signing.key.password=$KEY_PASS || true
           ls -lh app/build/outputs/bundle/release/ || true
-      - name: Upload APK
+      - name: Upload SIGNED APK
         uses: actions/upload-artifact@v4
         with:
-          name: taqweem-RELEASE-APK
+          name: taqweem-SIGNED-APK
           path: android/app/build/outputs/apk/release/*.apk
-          if-no-files-found: warn
       - name: Upload AAB
         uses: actions/upload-artifact@v4
         with:
-          name: taqweem-RELEASE-AAB
+          name: taqweem-AAB
           path: android/app/build/outputs/bundle/release/*.aab
           if-no-files-found: warn
