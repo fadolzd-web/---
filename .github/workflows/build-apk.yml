@@ -55,20 +55,30 @@ jobs:
       - name: Copy
         run: npx cap copy android
 
-      - name: PATCH QIBLA PERMISSIONS - CRITICAL
+      - name: PATCH QIBLA PERMISSIONS - CRITICAL + SENSORS
         run: |
-          echo "=== Patching AndroidManifest for Qibla ==="
+          echo "=== Patching AndroidManifest for Qibla Compass ==="
           MANIFEST=android/app/src/main/AndroidManifest.xml
           cat $MANIFEST
-          # Add permissions if not present
+          # Add location permissions if not present
           if ! grep -q "ACCESS_FINE_LOCATION" $MANIFEST; then
             sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' $MANIFEST
           fi
           if ! grep -q "ACCESS_COARSE_LOCATION" $MANIFEST; then
             sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' $MANIFEST
           fi
+          # Add compass & sensor hardware features for Qibla (required=false to not filter Play Store)
+          if ! grep -q "android.hardware.sensor.compass" $MANIFEST; then
+            sed -i '/<manifest/a \    <uses-feature android:name="android.hardware.sensor.compass" android:required="false" />' $MANIFEST
+          fi
+          if ! grep -q "android.hardware.sensor.accelerometer" $MANIFEST; then
+            sed -i '/<manifest/a \    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />' $MANIFEST
+          fi
+          if ! grep -q "android.hardware.location.gps" $MANIFEST; then
+            sed -i '/<manifest/a \    <uses-feature android:name="android.hardware.location.gps" android:required="false" />' $MANIFEST
+          fi
           echo "=== AFTER PATCH ==="
-          grep -A2 -B2 "LOCATION" $MANIFEST || echo "No location found"
+          grep -E "LOCATION|sensor|compass|gps" $MANIFEST || echo "No location/sensor found"
           cat $MANIFEST
 
       - name: FORCE ICONS GOLDEN
