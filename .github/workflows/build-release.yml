@@ -1,0 +1,106 @@
+name: Build RELEASE Signed - FINAL
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Clean old android
+        run: |
+          rm -rf android www
+          mkdir -p www
+          cp index.html www/index.html
+          cp -f icon.png www/icon.png || echo "no icon"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: temurin
+      - uses: android-actions/setup-android@v3
+      
+      - name: Install
+        run: npm install
+
+      - name: Build fresh android
+        run: |
+          npx cap add android
+          npx cap sync android
+
+      - name: FORCE PERMISSIONS
+        run: |
+          MANIFEST=android/app/src/main/AndroidManifest.xml
+          sed -i '/ACCESS_FINE_LOCATION/d' $MANIFEST
+          sed -i '/ACCESS_COARSE_LOCATION/d' $MANIFEST
+          sed -i '/POST_NOTIFICATIONS/d' $MANIFEST
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.compass" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />' $MANIFEST
+          cat $MANIFEST
+
+      - name: FORCE MainActivity - GPS enabled
+        run: |
+          cat > android/app/src/main/java/com/fadol/taqweem/MainActivity.java <<'JAVA'
+          package com.fadol.taqweem;
+          import android.os.Bundle;
+          import android.webkit.GeolocationPermissions;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebView;
+          import com.getcapacitor.BridgeActivity;
+          public class MainActivity extends BridgeActivity {
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  WebView w = (WebView) this.bridge.getWebView();
+                  w.getSettings().setGeolocationEnabled(true);
+                  w.getSettings().setDomStorageEnabled(true);
+                  w.getSettings().setJavaScriptEnabled(true);
+                  w.setWebChromeClient(new WebChromeClient(){
+                      @Override
+                      public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback){
+                          callback.invoke(origin, true, false);
+                      }
+                  });
+              }
+          }
+          JAVA
+
+      - name: Force Icons
+        run: |
+          for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
+            mkdir -p android/app/src/main/res/$d
+            cp -f icon.png android/app/src/main/res/$d/ic_launcher.png || true
+            cp -f icon.png android/app/src/main/res/$d/ic_launcher_round.png || true
+          done
+
+      - name: Decode keystore
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+          fi
+
+      - name: Build RELEASE
+        run: |
+          cd android
+          chmod +x gradlew
+          if [ -f app/release.keystore ]; then
+            ./gradlew assembleRelease -Pandroid.injected.signing.store.file=app/release.keystore -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
+          else
+            ./gradlew assembleRelease
+          fi
+
+      - name: Upload RELEASE
+        uses: actions/upload-artifact@v4
+        with:
+          name: taqweem-RELEASE-SIGNED-FIXED
+          path: android/app/build/outputs/apk/release/*.apk
