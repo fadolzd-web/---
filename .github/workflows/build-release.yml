@@ -82,47 +82,83 @@ jobs:
           elif os.path.exists("www/beep.wav"):
               import shutil; shutil.copy("www/beep.wav","android/app/src/main/res/raw/beep.wav")
           PY
-      - name: Icon fix + Splash from icon
+      - name: Icon fix + Splash - FINAL (removes adaptive xml)
         run: |
           python3 << 'PY'
           from PIL import Image
-          import os
-          if os.path.exists("icon.png"):
-              im=Image.open("icon.png").convert("RGBA")
-              # Launcher icons
-              for folder,size in {"mipmap-mdpi":48,"mipmap-hdpi":72,"mipmap-xhdpi":96,"mipmap-xxhdpi":144,"mipmap-xxxhdpi":192}.items():
-                  p=f"android/app/src/main/res/{folder}"
-                  os.makedirs(p,exist_ok=True)
-                  im.resize((size,size), Image.LANCZOS).save(f"{p}/ic_launcher.png","PNG")
-                  im.resize((size,size), Image.LANCZOS).save(f"{p}/ic_launcher_round.png","PNG")
-              # Splash screen - create splash.png with green bg and centered icon
-              # Android splash needs drawable/splash.png
-              bg_color=(10,31,20)  # #0a1f14
-              # Create splash 1280x1920 portrait with centered icon
-              splash_w, splash_h = 1080, 1920
-              splash=Image.new("RGB", (splash_w, splash_h), bg_color)
-              # Resize icon to 500x500 and center
-              icon_size=500
-              icon_resized=im.resize((icon_size,icon_size), Image.LANCZOS)
-              # Paste with alpha if present
-              x=(splash_w-icon_size)//2
-              y=(splash_h-icon_size)//2 - 100  # slightly up
-              # If icon has alpha, paste onto background
-              if icon_resized.mode=='RGBA':
-                  # Create background for icon area
-                  splash_rgba=splash.convert("RGBA")
-                  splash_rgba.paste(icon_resized, (x,y), icon_resized)
-                  splash=splash_rgba.convert("RGB")
-              else:
-                  splash.paste(icon_resized, (x,y))
-              # Save to drawable folders
-              for d in ["drawable", "drawable-port", "drawable-land"]:
-                  p=f"android/app/src/main/res/{d}"
-                  os.makedirs(p,exist_ok=True)
-                  splash.save(f"{p}/splash.png","PNG")
-                  print(f"Splash {d}/splash.png created")
+          import os, glob, shutil
+          icon_path=None
+          for p in ["icon.png","www/icon.png"]:
+              if os.path.exists(p):
+                  icon_path=p
+                  break
+          if not icon_path:
+              print("NO icon.png found!")
+              exit(0)
+          im=Image.open(icon_path).convert("RGBA")
+          print(f"Using icon {icon_path} size {im.size}")
+          # 1. Remove adaptive icon xmls that override PNG - but recreate as proper adaptive that uses our PNG
+          # Delete v26 folder entirely to force fallback to PNG, then recreate adaptive xml pointing to our PNG
+          v26_path="android/app/src/main/res/mipmap-anydpi-v26"
+          if os.path.exists(v26_path):
+              shutil.rmtree(v26_path)
+              print(f"Removed {v26_path}")
+          os.makedirs(v26_path, exist_ok=True)
+          # Create adaptive icon xml that uses ic_launcher_foreground.png and background color
+          adaptive_xml='''<?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/ic_launcher_background"/>
+              <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+          </adaptive-icon>'''
+          open(f"{v26_path}/ic_launcher.xml","w").write(adaptive_xml)
+          open(f"{v26_path}/ic_launcher_round.xml","w").write(adaptive_xml)
+          print("Created adaptive xml pointing to foreground")
+          # Ensure ic_launcher_background color exists
+          os.makedirs("android/app/src/main/res/values", exist_ok=True)
+          # Add color if not exists
+          colors_path="android/app/src/main/res/values/colors.xml"
+          if not os.path.exists(colors_path):
+              open(colors_path,"w").write('<resources><color name="ic_launcher_background">#0a1f14</color></resources>')
+          else:
+              txt=open(colors_path,"r",encoding="utf-8").read()
+              if "ic_launcher_background" not in txt:
+                  txt=txt.replace("</resources>",'    <color name="ic_launcher_background">#0a1f14</color>\n</resources>')
+                  open(colors_path,"w",encoding="utf-8").write(txt)
+          # 2. Create launcher icons in all mipmap folders
+          sizes={"mipmap-mdpi":48,"mipmap-hdpi":72,"mipmap-xhdpi":96,"mipmap-xxhdpi":144,"mipmap-xxxhdpi":192}
+          for folder,size in sizes.items():
+              p=f"android/app/src/main/res/{folder}"
+              os.makedirs(p,exist_ok=True)
+              im.resize((size,size), Image.LANCZOS).save(f"{p}/ic_launcher.png","PNG")
+              im.resize((size,size), Image.LANCZOS).save(f"{p}/ic_launcher_round.png","PNG")
+              fg_size=int(size*1.5)
+              fg=Image.new("RGBA",(fg_size,fg_size),(0,0,0,0))
+              inner=int(fg_size*0.65)
+              inner_im=im.resize((inner,inner), Image.LANCZOS)
+              fg.paste(inner_im, ((fg_size-inner)//2,(fg_size-inner)//2), inner_im)
+              fg.save(f"{p}/ic_launcher_foreground.png","PNG")
+              print(f"Icons created in {folder}")
+          # 3. Splash
+          bg_color=(10,31,20)
+          splash_w, splash_h = 1080, 1920
+          splash=Image.new("RGB", (splash_w, splash_h), bg_color)
+          icon_size=500
+          icon_resized=im.resize((icon_size,icon_size), Image.LANCZOS)
+          x=(splash_w-icon_size)//2
+          y=(splash_h-icon_size)//2 - 100
+          splash_rgba=splash.convert("RGBA")
+          splash_rgba.paste(icon_resized, (x,y), icon_resized)
+          splash=splash_rgba.convert("RGB")
+          for d in ["drawable", "drawable-port", "drawable-land"]:
+              p=f"android/app/src/main/res/{d}"
+              os.makedirs(p,exist_ok=True)
+              splash.save(f"{p}/splash.png","PNG")
+              print(f"Splash {d}/splash.png")
+          if not os.path.exists("www/icon.png"):
+              try: shutil.copy(icon_path,"www/icon.png")
+              except: pass
           PY
-      - name: MainActivity - GPS + Compass sensor
+      - name: MainActivity - FIX GPS permission + Compass
         run: |
           cat > android/app/src/main/java/com/fadol/taqweem/MainActivity.java <<'JAVA'
           package com.fadol.taqweem;
@@ -142,13 +178,18 @@ jobs:
                   w.getSettings().setDomStorageEnabled(true);
                   w.getSettings().setJavaScriptEnabled(true);
                   w.getSettings().setAllowFileAccess(true);
+                  w.getSettings().setDatabaseEnabled(true);
                   SensorManager sm = (SensorManager) getSystemService(SENSOR_SERVICE);
-                  // just to force system to init compass
                   if(sm != null) sm.getDefaultSensor(Sensor.TYPE_ORIENTATION);
                   w.setWebChromeClient(new WebChromeClient(){
                       @Override
                       public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback){
-                          callback.invoke(origin, true, false);
+                          // FIX: true,true = allow and remember, not false
+                          callback.invoke(origin, true, true);
+                      }
+                      @Override
+                      public void onGeolocationPermissionsHidePrompt(){
+                          super.onGeolocationPermissionsHidePrompt();
                       }
                   });
               }
@@ -159,17 +200,25 @@ jobs:
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
           fi
-      - name: Build RELEASE
+      - name: Build RELEASE + AAB
         run: |
           cd android
           chmod +x gradlew
           if [ -f app/release.keystore ]; then
-            ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
+            ./gradlew assembleRelease bundleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }} --info
           else
-            ./gradlew assembleRelease
+            echo "No keystore, building unsigned release APK + AAB"
+            ./gradlew assembleRelease bundleRelease --info
           fi
-      - name: Upload
+          echo "=== APK ==="
+          ls -lh app/build/outputs/apk/release/
+          echo "=== AAB ==="
+          ls -lh app/build/outputs/bundle/release/
+      - name: Upload APK + AAB
         uses: actions/upload-artifact@v4
         with:
-          name: taqweem-FINAL-BG-COMPASS-GPS
-          path: android/app/build/outputs/apk/release/*.apk
+          name: taqweem-RELEASE-APK-AAB
+          path: |
+            android/app/build/outputs/apk/release/*.apk
+            android/app/build/outputs/bundle/release/*.aab
+          if-no-files-found: error
