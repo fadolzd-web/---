@@ -1,17 +1,19 @@
-name: Build RELEASE - BG Notifications + GPS
+name: Build RELEASE - FINAL BG + GPS + Compass
 on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Clean
+      - name: Prepare www - KEEP ALL FILES
         run: |
-          rm -rf android www
+          rm -rf android
           mkdir -p www
-          cp index.html www/index.html
-          cp -f icon.png www/icon.png || true
-          cp -f beep.wav www/beep.wav || true
+          for f in *; do
+            if [ "$f" = "android" ] || [ "$f" = ".github" ] || [ "$f" = "node_modules" ] || [ "$f" = "www" ] || [ "$f" = ".git" ]; then continue; fi
+            cp -r "$f" www/ 2>/dev/null || true
+          done
+          ls -la www/ | head -30
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -22,23 +24,26 @@ jobs:
       - uses: android-actions/setup-android@v3
       - name: Install
         run: |
-          npm install
+          npm install || true
           npm install @capacitor/local-notifications @capacitor/geolocation || true
+          pip install Pillow -q
       - name: Add android
         run: |
           npx cap add android
           npx cap sync android
-      - name: FORCE PERMISSIONS - BG
+      - name: Permissions + App Name in Settings
         run: |
           python3 << 'PY'
-          path="android/app/src/main/AndroidManifest.xml"
-          with open(path,"r",encoding="utf-8") as f:
-              c=f.read()
-          # clean
-          for p in ["POST_NOTIFICATIONS","SCHEDULE_EXACT_ALARM","USE_EXACT_ALARM","RECEIVE_BOOT_COMPLETED","WAKE_LOCK","VIBRATE","ACCESS_FINE_LOCATION","ACCESS_COARSE_LOCATION","ACCESS_BACKGROUND_LOCATION","FOREGROUND_SERVICE"]:
-              # keep INTERNET
-              if p!="INTERNET":
-                  c="\n".join([l for l in c.splitlines() if p not in l])
+          import os
+          mf="android/app/src/main/AndroidManifest.xml"
+          c=open(mf,"r",encoding="utf-8").read()
+          # remove old perms to avoid dup
+          lines=[]
+          for l in c.splitlines():
+              if any(x in l for x in ["ACCESS_FINE_LOCATION","ACCESS_COARSE_LOCATION","ACCESS_BACKGROUND_LOCATION","POST_NOTIFICATIONS","SCHEDULE_EXACT_ALARM","USE_EXACT_ALARM","RECEIVE_BOOT_COMPLETED","WAKE_LOCK","VIBRATE","FOREGROUND_SERVICE"]):
+                  continue
+              lines.append(l)
+          c="\n".join(lines)
           perms='''
               <uses-permission android:name="android.permission.INTERNET" />
               <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -52,12 +57,72 @@ jobs:
               <uses-permission android:name="android.permission.VIBRATE" />
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
               <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+              <uses-feature android:name="android.hardware.sensor.compass" android:required="false" />
           '''
+          # force app label = التقويم الشامل so it shows in permission screen
+          c=c.replace('android:label="@string/app_name"','android:label="التقويم الشامل"')
+          if 'android:label="التقويم الشامل"' not in c:
+              c=c.replace('<application', '<application android:label="التقويم الشامل"')
           c=c.replace("<application",perms+"\n    <application")
-          open(path,"w",encoding="utf-8").write(c)
-          print(c)
+          open(mf,"w",encoding="utf-8").write(c)
+          print("manifest patched with compass + app name")
+
+          # strings.xml
+          sp="android/app/src/main/res/values/strings.xml"
+          if os.path.exists(sp):
+              s=open(sp,"r",encoding="utf-8").read()
+              s=s.replace(">App<",">التقويم الشامل<").replace(">app<",">التقويم الشامل<")
+              if "التقويم الشامل" not in s:
+                  s=s.replace("<string name=\"app_name\">","<string name=\"app_name\">التقويم الشامل</string><string name=\"old\">")
+              open(sp,"w",encoding="utf-8").write(s)
+          # ensure beep.wav in raw for notification sound
+          os.makedirs("android/app/src/main/res/raw", exist_ok=True)
+          if os.path.exists("beep.wav"):
+              import shutil; shutil.copy("beep.wav","android/app/src/main/res/raw/beep.wav")
+          elif os.path.exists("www/beep.wav"):
+              import shutil; shutil.copy("www/beep.wav","android/app/src/main/res/raw/beep.wav")
           PY
-      - name: FORCE MainActivity BG
+      - name: Icon fix + Splash from icon
+        run: |
+          python3 << 'PY'
+          from PIL import Image
+          import os
+          if os.path.exists("icon.png"):
+              im=Image.open("icon.png").convert("RGBA")
+              # Launcher icons
+              for folder,size in {"mipmap-mdpi":48,"mipmap-hdpi":72,"mipmap-xhdpi":96,"mipmap-xxhdpi":144,"mipmap-xxxhdpi":192}.items():
+                  p=f"android/app/src/main/res/{folder}"
+                  os.makedirs(p,exist_ok=True)
+                  im.resize((size,size), Image.LANCZOS).save(f"{p}/ic_launcher.png","PNG")
+                  im.resize((size,size), Image.LANCZOS).save(f"{p}/ic_launcher_round.png","PNG")
+              # Splash screen - create splash.png with green bg and centered icon
+              # Android splash needs drawable/splash.png
+              bg_color=(10,31,20)  # #0a1f14
+              # Create splash 1280x1920 portrait with centered icon
+              splash_w, splash_h = 1080, 1920
+              splash=Image.new("RGB", (splash_w, splash_h), bg_color)
+              # Resize icon to 500x500 and center
+              icon_size=500
+              icon_resized=im.resize((icon_size,icon_size), Image.LANCZOS)
+              # Paste with alpha if present
+              x=(splash_w-icon_size)//2
+              y=(splash_h-icon_size)//2 - 100  # slightly up
+              # If icon has alpha, paste onto background
+              if icon_resized.mode=='RGBA':
+                  # Create background for icon area
+                  splash_rgba=splash.convert("RGBA")
+                  splash_rgba.paste(icon_resized, (x,y), icon_resized)
+                  splash=splash_rgba.convert("RGB")
+              else:
+                  splash.paste(icon_resized, (x,y))
+              # Save to drawable folders
+              for d in ["drawable", "drawable-port", "drawable-land"]:
+                  p=f"android/app/src/main/res/{d}"
+                  os.makedirs(p,exist_ok=True)
+                  splash.save(f"{p}/splash.png","PNG")
+                  print(f"Splash {d}/splash.png created")
+          PY
+      - name: MainActivity - GPS + Compass sensor
         run: |
           cat > android/app/src/main/java/com/fadol/taqweem/MainActivity.java <<'JAVA'
           package com.fadol.taqweem;
@@ -66,6 +131,8 @@ jobs:
           import android.webkit.WebChromeClient;
           import android.webkit.WebView;
           import com.getcapacitor.BridgeActivity;
+          import android.hardware.Sensor;
+          import android.hardware.SensorManager;
           public class MainActivity extends BridgeActivity {
               @Override
               protected void onCreate(Bundle savedInstanceState) {
@@ -74,6 +141,10 @@ jobs:
                   w.getSettings().setGeolocationEnabled(true);
                   w.getSettings().setDomStorageEnabled(true);
                   w.getSettings().setJavaScriptEnabled(true);
+                  w.getSettings().setAllowFileAccess(true);
+                  SensorManager sm = (SensorManager) getSystemService(SENSOR_SERVICE);
+                  // just to force system to init compass
+                  if(sm != null) sm.getDefaultSensor(Sensor.TYPE_ORIENTATION);
                   w.setWebChromeClient(new WebChromeClient(){
                       @Override
                       public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback){
@@ -83,13 +154,6 @@ jobs:
               }
           }
           JAVA
-      - name: Icons
-        run: |
-          for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
-            mkdir -p android/app/src/main/res/$d
-            cp -f icon.png android/app/src/main/res/$d/ic_launcher.png || true
-            cp -f icon.png android/app/src/main/res/$d/ic_launcher_round.png || true
-          done
       - name: Decode keystore
         run: |
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
@@ -107,5 +171,5 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: taqweem-RELEASE-BG-NOTIFICATIONS
+          name: taqweem-FINAL-BG-COMPASS-GPS
           path: android/app/build/outputs/apk/release/*.apk
