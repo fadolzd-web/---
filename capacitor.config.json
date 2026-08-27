@@ -2,24 +2,16 @@
   "appId": "com.fadol.taqweem",
   "appName": "التقويم الشامل",
   "webDir": "www",
+  "bundledWebRuntime": false,
   "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000
+    },
     "LocalNotifications": {
       "smallIcon": "ic_launcher",
-      "iconColor": "#d4af37",
-      "sound": "default"
+      "iconColor": "#0a7d3b",
+      "sound": "beep.wav"
     },
-    "Geolocation": {
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
-    }
-  },
-  "android": {
-    "permissions": [
-      "android.permission.INTERNET",
-      "android.permission.ACCESS_FINE_LOCATION",
-      "android.permission.ACCESS_COARSE_LOCATION",
-      "android.permission.POST_NOTIFICATIONS",
-      "android.permission.VIBRATE",
-      "android.permission.WAKE_LOCK"
-    ]
+    "Geolocation": {}
   }
 }
