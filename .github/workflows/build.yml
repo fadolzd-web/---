@@ -1,15 +1,19 @@
-name: Build APK - GOLDEN
+name: Build APK - FINAL FIX
 on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Create www
+      
+      - name: Clean old android - CRITICAL
         run: |
+          rm -rf android
+          rm -rf www
           mkdir -p www
           cp index.html www/index.html
           cp icon.png www/icon.png
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -18,55 +22,86 @@ jobs:
           java-version: 21
           distribution: temurin
       - uses: android-actions/setup-android@v3
-      - name: Install
+      
+      - name: Install deps
         run: npm install
-      - name: Init Cap
+
+      - name: Build fresh android
         run: |
-          if [ ! -f capacitor.config.json ]; then
-            npx cap init "التقويم الشامل" com.fadol.taqweem --web-dir=www
-          fi
-      - name: Add Android
-        run: npx cap add android || echo "android exists"
-      - name: Sync
-        run: |
+          npx cap add android
           npx cap sync android
-          npx cap copy android
-      - name: PATCH QIBLA + WEB + NOTIF - FULL
+
+      - name: FORCE ALL PERMISSIONS INTO MANIFEST
         run: |
           MANIFEST=android/app/src/main/AndroidManifest.xml
-          grep -q "INTERNET" $MANIFEST || sed -i '/<manifest/a \    <uses-permission android:name="android.permission.INTERNET" />' $MANIFEST
-          grep -q "ACCESS_FINE_LOCATION" $MANIFEST || sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' $MANIFEST
-          grep -q "ACCESS_COARSE_LOCATION" $MANIFEST || sed -i '/<manifest/a \    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />' $MANIFEST
-          grep -q "POST_NOTIFICATIONS" $MANIFEST || sed -i '/<manifest/a \    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />' $MANIFEST
-          grep -q "VIBRATE" $MANIFEST || sed -i '/<manifest/a \    <uses-permission android:name="android.permission.VIBRATE" />' $MANIFEST
-          grep -q "WAKE_LOCK" $MANIFEST || sed -i '/<manifest/a \    <uses-permission android:name="android.permission.WAKE_LOCK" />' $MANIFEST
-          grep -q "sensor.compass" $MANIFEST || sed -i '/<manifest/a \    <uses-feature android:name="android.hardware.sensor.compass" android:required="false" />' $MANIFEST
-          grep -q "sensor.accelerometer" $MANIFEST || sed -i '/<manifest/a \    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />' $MANIFEST
+          echo "--- BEFORE ---"
           cat $MANIFEST
-      - name: PATCH MainActivity - Geolocation
+          
+          # Remove any old permissions to avoid duplicates then add fresh before <application
+          sed -i '/ACCESS_FINE_LOCATION/d' $MANIFEST
+          sed -i '/ACCESS_COARSE_LOCATION/d' $MANIFEST
+          sed -i '/POST_NOTIFICATIONS/d' $MANIFEST
+          sed -i '/INTERNET/d' $MANIFEST
+          
+          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+    <uses-feature android:name="android.hardware.sensor.compass" android:required="false" />' $MANIFEST
+          
+          echo "--- AFTER ---"
+          cat $MANIFEST
+          grep -E "LOCATION|INTERNET|POST_NOTIFICATIONS" $MANIFEST
+
+      - name: FORCE MainActivity - 100% working
         run: |
-          FILE=android/app/src/main/java/com/fadol/taqweem/MainActivity.java
-          if ! grep -q "GeolocationPermissions" $FILE; then
-            sed -i 's/import android.os.Bundle;/import android.os.Bundle;\nimport android.webkit.GeolocationPermissions;\nimport android.webkit.WebChromeClient;\nimport android.webkit.WebView;/' $FILE
-          fi
-          if ! grep -q "setGeolocationEnabled" $FILE; then
-            sed -i '/super.onCreate/a \        try { WebView w = (WebView) this.bridge.getWebView(); w.getSettings().setGeolocationEnabled(true); w.getSettings().setDomStorageEnabled(true); w.setWebChromeClient(new WebChromeClient(){ public void onGeolocationPermissionsShowPrompt(String o, GeolocationPermissions.Callback c){ c.invoke(o,true,false); } }); } catch(Exception e){}' $FILE
-          fi
-          cat $FILE
-      - name: FORCE ICONS
+          mkdir -p android/app/src/main/java/com/fadol/taqweem
+          cat > android/app/src/main/java/com/fadol/taqweem/MainActivity.java <<'JAVA'
+          package com.fadol.taqweem;
+          import android.os.Bundle;
+          import android.webkit.GeolocationPermissions;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebView;
+          import com.getcapacitor.BridgeActivity;
+          public class MainActivity extends BridgeActivity {
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  WebView w = (WebView) this.bridge.getWebView();
+                  w.getSettings().setGeolocationEnabled(true);
+                  w.getSettings().setDomStorageEnabled(true);
+                  w.getSettings().setJavaScriptEnabled(true);
+                  w.setWebChromeClient(new WebChromeClient(){
+                      @Override
+                      public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback){
+                          callback.invoke(origin, true, false);
+                      }
+                  });
+              }
+          }
+          JAVA
+          cat android/app/src/main/java/com/fadol/taqweem/MainActivity.java
+
+      - name: Force Icons
         run: |
           for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
             mkdir -p android/app/src/main/res/$d
             cp -f icon.png android/app/src/main/res/$d/ic_launcher.png
             cp -f icon.png android/app/src/main/res/$d/ic_launcher_round.png
           done
+
       - name: Build
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --info
+
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: taqweem-GOLDEN-with-icon
+          name: taqweem-FIXED-location-qibla
           path: android/app/build/outputs/apk/debug/app-debug.apk
