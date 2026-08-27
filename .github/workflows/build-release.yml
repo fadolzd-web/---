@@ -1,18 +1,17 @@
-name: Build RELEASE Signed - FINAL
+name: Build RELEASE - BG Notifications + GPS
 on: [push]
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Clean old android
+      - name: Clean
         run: |
           rm -rf android www
           mkdir -p www
           cp index.html www/index.html
-          cp -f icon.png www/icon.png || echo "no icon"
-
+          cp -f icon.png www/icon.png || true
+          cp -f beep.wav www/beep.wav || true
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -21,34 +20,44 @@ jobs:
           java-version: 21
           distribution: temurin
       - uses: android-actions/setup-android@v3
-      
       - name: Install
-        run: npm install
-
-      - name: Build fresh android
+        run: |
+          npm install
+          npm install @capacitor/local-notifications @capacitor/geolocation || true
+      - name: Add android
         run: |
           npx cap add android
           npx cap sync android
-
-      - name: FORCE PERMISSIONS
+      - name: FORCE PERMISSIONS - BG
         run: |
-          MANIFEST=android/app/src/main/AndroidManifest.xml
-          sed -i '/ACCESS_FINE_LOCATION/d' $MANIFEST
-          sed -i '/ACCESS_COARSE_LOCATION/d' $MANIFEST
-          sed -i '/POST_NOTIFICATIONS/d' $MANIFEST
-          sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.VIBRATE" />
-    <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
-    <uses-feature android:name="android.hardware.sensor.compass" android:required="false" />
-    <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="false" />' $MANIFEST
-          cat $MANIFEST
-
-      - name: FORCE MainActivity - GPS enabled
+          python3 << 'PY'
+          path="android/app/src/main/AndroidManifest.xml"
+          with open(path,"r",encoding="utf-8") as f:
+              c=f.read()
+          # clean
+          for p in ["POST_NOTIFICATIONS","SCHEDULE_EXACT_ALARM","USE_EXACT_ALARM","RECEIVE_BOOT_COMPLETED","WAKE_LOCK","VIBRATE","ACCESS_FINE_LOCATION","ACCESS_COARSE_LOCATION","ACCESS_BACKGROUND_LOCATION","FOREGROUND_SERVICE"]:
+              # keep INTERNET
+              if p!="INTERNET":
+                  c="\n".join([l for l in c.splitlines() if p not in l])
+          perms='''
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+              <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+              <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+              <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+              <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+              <uses-permission android:name="android.permission.WAKE_LOCK" />
+              <uses-permission android:name="android.permission.VIBRATE" />
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+              <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+          '''
+          c=c.replace("<application",perms+"\n    <application")
+          open(path,"w",encoding="utf-8").write(c)
+          print(c)
+          PY
+      - name: FORCE MainActivity BG
         run: |
           cat > android/app/src/main/java/com/fadol/taqweem/MainActivity.java <<'JAVA'
           package com.fadol.taqweem;
@@ -74,21 +83,18 @@ jobs:
               }
           }
           JAVA
-
-      - name: Force Icons
+      - name: Icons
         run: |
           for d in mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi; do
             mkdir -p android/app/src/main/res/$d
             cp -f icon.png android/app/src/main/res/$d/ic_launcher.png || true
             cp -f icon.png android/app/src/main/res/$d/ic_launcher_round.png || true
           done
-
       - name: Decode keystore
         run: |
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
           fi
-
       - name: Build RELEASE
         run: |
           cd android
@@ -98,9 +104,8 @@ jobs:
           else
             ./gradlew assembleRelease
           fi
-
-      - name: Upload RELEASE
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: taqweem-RELEASE-SIGNED-FIXED
+          name: taqweem-RELEASE-BG-NOTIFICATIONS
           path: android/app/build/outputs/apk/release/*.apk
