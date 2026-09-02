@@ -5525,7 +5525,22 @@ button.old-export-hidden {
 
 <script>
 (function(){
-  window.openQuranSystem = function(){ console.log('placeholder - will be overridden'); };;
+  window.openQuranSystem = function(){ 
+  console.log('📖 Quran button -> opening Khira');
+  if(window.openKhiraSystem) return window.openKhiraSystem();
+  if(window._khiraHtmlRaw){
+    // fallback if loader not yet defined
+    let old=document.getElementById('khira-main-overlay');
+    if(old) old.remove();
+    let ov=document.createElement('div');
+    ov.id='khira-main-overlay';
+    ov.className='qibla-overlay';
+    ov.innerHTML='<div class="qibla-box" style="max-height:90vh"><div class="qibla-head"><span>الخيرة بالقرآن</span><button onclick="document.getElementById(\'khira-main-overlay\').remove()" style="background:#1a3a24;color:#d4af37;border:1px solid rgba(212,175,55,0.3);width:32px;height:32px;border-radius:50%">✕</button></div><iframe srcdoc="'+window._khiraHtmlRaw.replace(/"/g,'&quot;')+'" style="width:100%;height:80vh;border:0;background:#0a1a0f"></iframe></div>';
+    document.body.appendChild(ov);
+    return;
+  }
+  alert('جاري تحميل الخيرة...');
+};;
   
   // Observer for 📖 same pattern as 🕋
   try{
@@ -5595,16 +5610,33 @@ window.openQiblaSystem = async function(){
 // نفس الشي للخيرة - اذا عندك دالة openKhiraSystem
 window.openKhiraSystem = async function(){
   try{
-    if(!_khiraCache) _khiraCache = await fetch('khira.html').then(r=>r.text());
+    if(!_khiraCache){
+      let tried=[];
+      let urls=['khira.html','./khira.html','/khira.html','file:///android_asset/public/khira.html','content://com.transsion.khira.html'];
+      for(let u of urls){
+        try{
+          let r=await fetch(u);
+          if(r && r.ok){ _khiraCache=await r.text(); if(_khiraCache && _khiraCache.length>200) break; }
+        }catch(e){ tried.push(u); }
+      }
+      // If still null and we have raw injected, use it
+      if((!_khiraCache || _khiraCache.length<200) && window._khiraHtmlRaw) _khiraCache=window._khiraHtmlRaw;
+    }
     let old=document.getElementById('khira-main-overlay');
     if(old) old.remove();
     let ov=document.createElement('div');
     ov.id='khira-main-overlay';
     ov.className='qibla-overlay';
-    ov.innerHTML='<div class="qibla-box" style="max-height:90vh"><div class="qibla-head"><div style="font-weight:900;color:#d4af37;font-size:15px">🔮 الخيرة</div><button id="k-close-main" style="background:#132a1a;border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:999px;width:32px;height:32px;cursor:pointer">✕</button></div><div class="qibla-body"><iframe id="khira-iframe" src="about:blank" style="width:100%;height:100%;min-height:80vh;border:0;background:#0a1f14"></iframe></div></div>';
+    ov.innerHTML='<div class="qibla-box" style="max-height:90vh"><div class="qibla-head"><div style="font-weight:900;color:#d4af37;font-size:15px">📖 الخيرة</div><button id="k-close-main" style="background:#132a1a;border:1px solid rgba(255,255,255,0.1);color:#fff;border-radius:999px;width:32px;height:32px;cursor:pointer">✕</button></div><div class="qibla-body"><iframe id="khira-iframe" src="about:blank" style="width:100%;height:100%;min-height:80vh;border:0;background:#0a1f14"></iframe></div></div>';
     document.body.appendChild(ov);
     let iframeEl=ov.querySelector('#khira-iframe');
-    if(iframeEl) try{ iframeEl.srcdoc=_khiraCache; }catch(e){}
+    if(iframeEl){
+      if(_khiraCache && _khiraCache.length>200){
+        try{ iframeEl.srcdoc=_khiraCache; }catch(e){ iframeEl.src='data:text/html;charset=utf-8,'+encodeURIComponent(_khiraCache); }
+      }else{
+        iframeEl.srcdoc='<div style=\'background:#0a1a0f;color:#d4af37;padding:20px;text-align:center\'>تعذر تحميل khira.html<br>تأكد أن الملف بجانب index.html<br><br>Length: '+(_khiraCache? _khiraCache.length : 'null')+'</div>';
+      }
+    }
     document.getElementById('k-close-main').onclick=()=>ov.remove();
     ov.addEventListener('click', e=>{ if(e.target===ov) ov.remove(); });
   }catch(e){ console.error(e); }
