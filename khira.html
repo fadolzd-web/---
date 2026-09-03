@@ -165,25 +165,6 @@ body::after{
 
 
 
-<style id="FIX-BOTTOM-RESULT-V2">
-/* إصلاح الفراغ - فقط مسافة صغيرة فوق شريط النظام */
-body{
-  padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-  margin-bottom:0 !important;
-}
-#app, #resultView, #gridResult{
-  padding-bottom:0 !important;
-  margin-bottom:0 !important;
-}
-div[style*="justify-content:center"][style*="margin-top:28px"]{
-  padding-bottom: max(12px, env(safe-area-inset-bottom, 12px)) !important;
-  margin-bottom:0 !important;
-  background: transparent !important;
-  position:relative !important;
-}
-/* احذف الفراغ الداكن الأخير إذا وجد */
-body::after{display:none !important;}
-</style>
 
 </head>
 <body>
@@ -251,7 +232,7 @@ body::after{display:none !important;}
       </div>
     </div>
     <div id="gridResult" style="display:grid;gap:16px;margin-top:20px"></div>
-    <div style="display:flex;gap:12px;justify-content:center;margin-top:28px;padding-bottom:8px">
+    <div style="display:flex;gap:12px;justify-content:center;margin-top:28px;padding-bottom:calc(110px + env(safe-area-inset-bottom, 0px));padding-top:12px;background:transparent">
       <button onclick="toLanding()" style="height:46px;padding:0 26px;border-radius:999px;border:1.5px solid #D4AF37;background:#fff;cursor:pointer;font-size:14px;color:#1a2e1a;font-weight:700;font-family:'Reem Kufi';box-shadow:0 4px 16px rgba(0,0,0,0.06)">الرئيسية</button>
       <button onclick="shareResult()" style="height:46px;padding:0 28px;border-radius:999px;background: linear-gradient(135deg,#1a2e1a,#0f2314);border:1px solid rgba(212,175,55,0.4);cursor:pointer;font-weight:800;font-size:14px;color:#D4AF37;font-family:'Reem Kufi';box-shadow:0 8px 24px rgba(0,0,0,0.2)">مشاركة ✨</button>
     </div>
