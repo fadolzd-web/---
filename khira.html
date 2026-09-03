@@ -162,6 +162,25 @@ body::after{
 /* Scrollbar */
 ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-thumb{background:#D4AF37;border-radius:999px}
 </style>
+
+<style id="FIX-BOTTOM-RESULT-ONLY">
+/* إصلاح فقط الأزرار السفلية في شاشة النتيجة - لا يمس أي شيء آخر */
+html{padding-bottom:0 !important;}
+body{
+  padding-bottom:calc(90px + env(safe-area-inset-bottom, 0px)) !important;
+}
+#gridResult{
+  padding-bottom:calc(20px + env(safe-area-inset-bottom, 20px)) !important;
+}
+/* للهواتف التي عندها شريط نظام سفلي */
+@media (max-height: 900px){
+  div[style*="justify-content:center"][style*="margin-top:28px"]{
+    padding-bottom:calc(30px + env(safe-area-inset-bottom, 30px)) !important;
+    margin-bottom:0 !important;
+  }
+}
+</style>
+
 </head>
 <body>
 <div id="landingPage">
@@ -228,7 +247,7 @@ body::after{
       </div>
     </div>
     <div id="gridResult" style="display:grid;gap:16px;margin-top:20px"></div>
-    <div style="display:flex;gap:12px;justify-content:center;margin-top:28px;padding-bottom:20px">
+    <div style="display:flex;gap:12px;justify-content:center;margin-top:28px;padding-bottom:calc(20px + env(safe-area-inset-bottom, 20px));padding-top:10px;background:linear-gradient(180deg, transparent, #f5f1d6 20%);position:sticky;bottom:0;z-index:10">
       <button onclick="toLanding()" style="height:46px;padding:0 26px;border-radius:999px;border:1.5px solid #D4AF37;background:#fff;cursor:pointer;font-size:14px;color:#1a2e1a;font-weight:700;font-family:'Reem Kufi';box-shadow:0 4px 16px rgba(0,0,0,0.06)">الرئيسية</button>
       <button onclick="shareResult()" style="height:46px;padding:0 28px;border-radius:999px;background: linear-gradient(135deg,#1a2e1a,#0f2314);border:1px solid rgba(212,175,55,0.4);cursor:pointer;font-weight:800;font-size:14px;color:#D4AF37;font-family:'Reem Kufi';box-shadow:0 8px 24px rgba(0,0,0,0.2)">مشاركة ✨</button>
     </div>
