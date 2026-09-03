@@ -5456,7 +5456,6 @@ button.old-export-hidden {
   // 2- اغلق فوراً ليشعر المستخدم انه اخذ
   closeReminderPicker();
   if(window.T) window.T("تم التذكير: "+label+" ✓");
-  else { try{ alert("تم التذكير: "+label+" ✓\n"+ev.title); }catch(e){} }
   try{ setTimeout(function(){ var btn=document.querySelector('[data-reminder="'+ev.id+'"]'); if(btn) btn.textContent='✓ تم التفعيل'; },300); }catch(e){}
   
   // 3- جدولة الاشعار بالخلفية (لا تؤخر الاغلاق)
