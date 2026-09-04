@@ -61,293 +61,74 @@ Error generating stack: `+u.message+`
   <script>(function(){function m(a){var h=a.getAttribute("href");if(!h)return;try{var u=new URL(h,document.baseURI);if((u.protocol==="http:"||u.protocol==="https:")&&u.host!==location.host){a.target="_blank";a.rel="noopener noreferrer";}}catch(e){}}function s(){document.querySelectorAll("a[href]").forEach(m);}if(document.readyState!=="loading"){s();}else{document.addEventListener("DOMContentLoaded",s);}document.addEventListener("click",function(e){var a=e.target&&e.target.closest&&e.target.closest("a[href]");if(a){m(a);}},true);})();</script>
   
 
-<!-- FULL LINKING FROM quran.db - ALL FEATURES -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
 <script>
 (async function(){
-  const DB_PATHS = ['./quran.db','quran.db','/quran.db'];
   let db=null;
-  let statusEl=null;
-  function log(msg){
-    console.log(msg);
-    if(!statusEl){
-      statusEl=document.createElement('div');
-      statusEl.id='db-status';
-      statusEl.style.cssText='position:fixed;bottom:8px;left:8px;right:8px;background:#0a1f14;color:#d4af37;padding:8px;border-radius:8px;font-size:11px;z-index:999999;border:1px solid #d4af37;text-align:center;';
-      document.body.appendChild(statusEl);
-    }
-    statusEl.textContent=msg;
-    statusEl.style.display='block';
-    setTimeout(()=>{ if(statusEl) statusEl.style.display='none'; }, 4000);
-  }
-  
-  log('⏳ تحميل قاعدة البيانات...');
-  for(let p of DB_PATHS){
+  for(let p of ['./quran.db','quran.db','public/quran.db']){
     try{
-      let r=await fetch(p+'?v='+Date.now(),{cache:'no-store'});
+      let r=await fetch(p+'?v='+Date.now());
       if(r.ok){
         let buf=await r.arrayBuffer();
-        const SQL=await initSqlJs({locateFile:f=>`https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`});
-        db=new SQL.Database(new Uint8Array(buf));
-        window.QuranDB=db;
-        log('✅ تم تحميل quran.db '+(buf.byteLength/1024/1024).toFixed(2)+'MB');
-        break;
-      }
-    }catch(e){ console.error(e); }
-  }
-  if(!db){ log('❌ فشل تحميل quran.db'); return; }
-  
-  try{
-    // 1. PAGES - all columns including tashkeel, surah, juz, hizb, rub, stats
-    let pagesRes=db.exec("SELECT p.page, p.surah, p.juz, p.hizb, p.rub, p.text_with_tashkeel, p.text_without_tashkeel, p.word_count, p.has_sajda, p.is_juz_start, perf.char_count FROM pages p LEFT JOIN performance perf ON p.page=perf.page ORDER BY p.page");
-    let fullPages=[];
-    let useTashkeel = localStorage.getItem('quran_use_tashkeel') === 'with';
-    
-    if(pagesRes[0]){
-      let cols=pagesRes[0].columns;
-      let idx={}; cols.forEach((c,i)=>idx[c]=i);
-      for(let row of pagesRes[0].values){
-        fullPages.push({
-          page: row[idx['page']],
-          surah: row[idx['surah']],
-          juz: row[idx['juz']],
-          hizb: row[idx['hizb']],
-          rub: row[idx['rub']],
-          text: useTashkeel ? row[idx['text_with_tashkeel']] : row[idx['text_without_tashkeel']],
-          text_tashkeel: row[idx['text_with_tashkeel']],
-          text_plain: row[idx['text_without_tashkeel']],
-          word_count: row[idx['word_count']],
-          char_count: row[idx['char_count']],
-          has_sajda: row[idx['has_sajda']],
-          is_juz_start: row[idx['is_juz_start']]
-        });
-      }
-    }
-    
-    // Override N_ and R_ with full 604 pages from DB
-    window.QuranFullPages=fullPages;
-    window.QuranUseTashkeel=useTashkeel;
-    window.QuranWordCharMap={};
-    fullPages.forEach(p=>{ window.QuranWordCharMap[p.page]={word_count:p.word_count, char_count:p.char_count, has_sajda:p.has_sajda}; });
-    
-    if(typeof N_!=='undefined'){
-      N_.length=0;
-      fullPages.forEach(p=>N_.push(p));
-    }
-    if(typeof R_!=='undefined'){
-      R_.length=0;
-      fullPages.forEach(p=>R_.push(p));
-    }
-    window.N_=fullPages;
-    window.R_=fullPages;
-    
-    // 2. SAJDA - 15 sajda
-    try{
-      let sajdaRes=db.exec("SELECT * FROM sajda ORDER BY id");
-      if(sajdaRes[0]){
-        let sajdaList=[];
-        let cols=sajdaRes[0].columns;
-        let sIdx={}; cols.forEach((c,i)=>sIdx[c]=i);
-        sajdaRes[0].values.forEach(r=>{
-          sajdaList.push({
-            id: r[sIdx['id']],
-            surah: r[sIdx['surah_name']] || r[sIdx['surah']],
-            surah_name: r[sIdx['surah_name']],
-            ayah: r[sIdx['ayah']],
-            ayahRef: r[sIdx['surah']]+':'+r[sIdx['ayah']],
-            page: r[sIdx['page']],
-            surahNameShort: r[sIdx['surah_name']],
-            note: r[sIdx['note']]||''
-          });
-        });
-        window.QuranSajda=sajdaList;
-        // Override ma if exists
-        if(typeof ma!=='undefined' && Array.isArray(ma)){
-          ma.length=0;
-          sajdaList.forEach(s=>ma.push(s));
+        if(buf.byteLength>100000){
+          const SQL=await initSqlJs({locateFile:f=>`https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`});
+          db=new SQL.Database(new Uint8Array(buf));
+          window.QuranDB=db;
+          break;
         }
-        // Also window.sajda
-        window.sajda=sajdaList;
-      }
-    }catch(e){ console.error('Sajda load error', e); }
-    
-    // 3. RUB - 240 rub (الأرباع)
-    try{
-      let rubRes=db.exec("SELECT * FROM rub ORDER BY rub");
-      if(rubRes[0]){
-        let rubList=[];
-        let cols=rubRes[0].columns;
-        let rIdx={}; cols.forEach((c,i)=>rIdx[c]=i);
-        rubRes[0].values.forEach(r=>{
-          let obj={};
-          cols.forEach((c,i)=>obj[c]=r[i]);
-          rubList.push(obj);
-        });
-        window.QuranRub=rubList;
-        window.rub=rubList;
-      }
-    }catch(e){ console.error('Rub load error', e); }
-    
-    // 4. SURAHS - list of surahs
-    try{
-      let surahRes=db.exec("SELECT * FROM surahs ORDER BY id");
-      if(surahRes[0]){
-        let list=[];
-        let cols=surahRes[0].columns;
-        surahRes[0].values.forEach(r=>{
-          let o={}; cols.forEach((c,i)=>o[c]=r[i]);
-          list.push(o);
-        });
-        window.QuranSurahs=list;
       }
     }catch(e){}
-    
-    // 5. JUZS - 30 juz
-    try{
-      let juzRes=db.exec("SELECT * FROM juzs ORDER BY juz");
-      if(juzRes[0]){
-        let list=[];
-        let cols=juzRes[0].columns;
-        juzRes[0].values.forEach(r=>{
-          let o={}; cols.forEach((c,i)=>o[c]=r[i]);
-          list.push(o);
-        });
-        window.QuranJuzs=list;
-      }
-    }catch(e){}
-    
-    // 6. HIZBS - 60 hizb
-    try{
-      let hizbRes=db.exec("SELECT * FROM hizbs ORDER BY hizb");
-      if(hizbRes[0]){
-        let list=[];
-        let cols=hizbRes[0].columns;
-        hizbRes[0].values.forEach(r=>{
-          let o={}; cols.forEach((c,i)=>o[c]=r[i]);
-          list.push(o);
-        });
-        window.QuranHizbs=list;
-      }
-    }catch(e){}
-    
-    // 7. Search index for ayahs
-    try{
-      let ayahRes=db.exec("SELECT page, surah, ayah, text_with_tashkeel, text_without_tashkeel FROM ayahs ORDER BY page, ayah LIMIT 6236");
-      if(ayahRes[0]){
-        let list=[];
-        let cols=ayahRes[0].columns;
-        let aIdx={}; cols.forEach((c,i)=>aIdx[c]=i);
-        ayahRes[0].values.forEach(r=>{
-          list.push({
-            page: r[aIdx['page']],
-            surah: r[aIdx['surah']],
-            ayah: r[aIdx['ayah']],
-            text_tash: r[aIdx['text_with_tashkeel']],
-            text_plain: r[aIdx['text_without_tashkeel']]
-          });
-        });
-        window.QuranSearchIndex=list;
-      }
-    }catch(e){}
-    
-    // 8. Tajweed - ya array already exists in original (colors), no need to override
-    
-    // 9. Toggle function for tashkeel (used by settings button)
-    window.toggleTashkeel = function(){
-      let isWith = localStorage.getItem('quran_use_tashkeel') === 'with';
-      let newMode = isWith ? 'without' : 'with';
-      localStorage.setItem('quran_use_tashkeel', newMode);
-      window.QuranUseTashkeel = newMode === 'with';
-      if(window.QuranFullPages){
-        window.QuranFullPages.forEach(p=>{
-          p.text = newMode === 'with' ? p.text_tashkeel : p.text_plain;
-        });
-        if(window.N_){ N_.length=0; window.QuranFullPages.forEach(p=>N_.push(p)); }
-        if(window.R_){ R_.length=0; window.QuranFullPages.forEach(p=>R_.push(p)); }
-      }
-      window.dispatchEvent(new Event('resize'));
-      window.dispatchEvent(new Event('quranDBLoaded'));
-      return newMode;
-    };
-    
-    log('✅ تم الربط الكامل: '+fullPages.length+' صفحة + '+(window.QuranSajda?window.QuranSajda.length:0)+' سجدة + '+(window.QuranRub?window.QuranRub.length:0)+' ربع من quran.db');
-    window.dispatchEvent(new Event('quranDBLoaded'));
-    
-  }catch(e){
-    console.error('DB linking error', e);
-    log('❌ خطأ في الربط: '+e.message);
   }
+  if(!db) return;
+  try{
+    let res=db.exec("SELECT page,surah,juz,hizb,rub,text_with_tashkeel,text_without_tashkeel,word_count,has_sajda FROM pages ORDER BY page");
+    let pages=[];
+    if(res[0]){
+      let cols=res[0].columns; let idx={}; cols.forEach((c,i)=>idx[c]=i);
+      for(let row of res[0].values){
+        pages.push({page:row[idx.page],surah:row[idx.surah],juz:row[idx.juz],hizb:row[idx.hizb],rub:row[idx.rub],text:row[idx.text_without_tashkeel],text_tashkeel:row[idx.text_with_tashkeel],text_plain:row[idx.text_without_tashkeel],word_count:row[idx.word_count],has_sajda:row[idx.has_sajda]});
+      }
+    }
+    if(pages.length>0){
+      window.QuranFullPages=pages;
+      if(typeof N_!=='undefined'){ N_.length=0; pages.forEach(p=>N_.push(p)); }
+      window.N_=pages; window.R_=pages;
+    }
+    try{ let r=db.exec("SELECT * FROM rub ORDER BY rub"); if(r[0]){ let list=[]; r[0].values.forEach(row=>{ let o={}; r[0].columns.forEach((c,i)=>o[c]=row[i]); list.push(o); }); window.QuranRub=list; } }catch(e){}
+    try{ let s=db.exec("SELECT * FROM sajda ORDER BY id"); if(s[0]){ let list=[]; let cols=s[0].columns; let id={}; cols.forEach((c,i)=>id[c]=i); s[0].values.forEach(row=>{ list.push({id:row[id.id],surah:row[id.surah_name],page:row[id.page]}); }); window.QuranSajda=list; } }catch(e){}
+    window.dispatchEvent(new Event('quranDBLoaded'));
+    setTimeout(()=>window.dispatchEvent(new Event('resize')),500);
+  }catch(e){ console.error(e); }
 })();
 </script>
-
-<!-- Rub Tab + Sajda + Stats injection (preserves existing features) -->
 <script>
-// Add rub tab next to أحزاب if not exists
+// زر الأرباع
 setInterval(()=>{
-  try{
-    if(document.getElementById('rub-tab-btn') || !document.body.innerHTML.includes('الأحزاب')) return;
-    let tabs=document.querySelectorAll('button');
-    let ahzabBtn=null, container=null;
-    for(let b of tabs){
-      if(b.textContent.trim().includes('الأحزاب')){ ahzabBtn=b; container=b.parentElement; break; }
-    }
-    if(!container || !ahzabBtn) return;
-    let rubBtn=document.createElement('button');
-    rubBtn.id='rub-tab-btn';
-    rubBtn.textContent='الأرباع';
-    rubBtn.className=ahzabBtn.className;
-    rubBtn.onclick=function(){
-      Array.from(container.children).forEach(c=>{
-        c.classList.remove('bg-[#D4AF37]','text-[#0F3D2E]');
-      });
-      this.classList.add('bg-[#D4AF37]','text-[#0F3D2E]');
-      let grids=document.querySelectorAll('.grid');
-      let target=null;
-      for(let g of grids){
-        if(g.children.length>5){ target=g; break; }
-      }
-      if(!target || !window.QuranRub) return;
-      let html='';
-      window.QuranRub.forEach(rub=>{
-        html+=`<button onclick="window.dispatchEvent(new CustomEvent('goToPage',{detail:{page:${rub.start_page}}))" class="rounded-2xl p-4 text-right border border-[#D4AF37]/20 bg-[#FFFEF9]"><div class="flex justify-between"><span class="text-[11px] px-2 py-1 rounded-full bg-[#0F3D2E] text-[#D4AF37]">ربع ${rub.rub}</span><span class="text-[10px]">ج ${rub.juz} • ح ${rub.hizb}</span></div><div class="font-bold text-sm">الربع ${rub.rub} - الحزب ${rub.hizb}</div><div class="text-[11px] opacity-70">الجزء ${rub.juz} • ربع ${rub.rub_in_hizb} من الحزب</div><div class="text-[10px] opacity-50">ص ${rub.start_page} - ${rub.end_page}</div></button>`;
-      });
-      target.innerHTML=html;
-    };
-    container.appendChild(rubBtn);
-  }catch(e){}
-}, 1500);
-
-// Add word/char stats to juz cards
-setInterval(()=>{
-  try{
-    let buttons=document.querySelectorAll('button.rounded-2xl');
-    buttons.forEach(btn=>{
-      if(btn.dataset.wordPatched) return;
-      let txt=btn.textContent;
-      let m=txt.match(/الجزء\s*([\d٠-٩]+)/);
-      if(m && window.QuranWordCharMap){
-        let map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
-        let num=parseInt(m[1].replace(/[٠-٩]/g,x=>map[x]));
-        // Find first page of this juz
-        let firstPage=null;
-        if(window.QuranFullPages){
-          for(let p of window.QuranFullPages){ if(p.juz==num){ firstPage=p.page; break; } }
-        }
-        if(firstPage && window.QuranWordCharMap[firstPage]){
-          let info=window.QuranWordCharMap[firstPage];
-          if(info.word_count && !btn.innerHTML.includes('word-char-badge')){
-            let badge=document.createElement('div');
-            badge.className='flex gap-1 mt-1';
-            badge.innerHTML=`<span class="word-char-badge" style="font-size:10px;background:#0F3D2E;color:#D4AF37;padding:2px 6px;border-radius:999px;">📝 ${info.word_count} كلمة</span>`;
-            let target=btn.querySelector('.mt-2')||btn;
-            target.appendChild(badge);
-            btn.dataset.wordPatched='1';
-          }
-        }
-      }
+  if(document.getElementById('rub-tab-btn')) return;
+  let btns=[...document.querySelectorAll('button')];
+  let hizbBtn=btns.find(b=>b.textContent.trim()==='الأحزاب');
+  if(!hizbBtn) hizbBtn=btns.find(b=>b.textContent.includes('الأحزاب'));
+  if(!hizbBtn) return;
+  let cont=hizbBtn.parentElement;
+  if(!cont) return;
+  let rb=document.createElement('button');
+  rb.id='rub-tab-btn';
+  rb.textContent='الأرباع';
+  rb.className=hizbBtn.className;
+  rb.onclick=function(){
+    [...cont.children].forEach(c=>c.classList.remove('bg-[#D4AF37]','text-[#0F3D2E]'));
+    this.classList.add('bg-[#D4AF37]','text-[#0F3D2E]');
+    let grids=[...document.querySelectorAll('.grid')];
+    let target=grids.find(g=>g.children.length>10) || grids.find(g=>g.children.length>5);
+    if(!target || !window.QuranRub){ if(target) target.innerHTML='<div class="col-span-full text-center p-8">⏳ جاري التحميل...</div>'; return; }
+    let html='';
+    window.QuranRub.forEach(r=>{
+      html+=`<button onclick="window.goToPage?window.goToPage(${r.start_page}):window.dispatchEvent(new CustomEvent('goToPage',{detail:{page:${r.start_page}}}))" class="rounded-2xl p-4 text-right border border-[#D4AF37]/20 bg-[#FFFEF9]"><div class="flex justify-between"><span class="text-[10px] px-2 py-1 rounded-full bg-[#0F3D2E] text-[#D4AF37]">ربع ${r.rub}</span><span class="text-[10px] opacity-60">ص ${r.start_page}</span></div><div class="font-bold text-[13px] mt-1">الربع ${r.rub} - الحزب ${r.hizb}</div><div class="text-[11px] opacity-60">الجزء ${r.juz} • ص ${r.start_page}-${r.end_page}</div></button>`;
     });
-  }catch(e){}
-}, 2000);
+    target.innerHTML=html;
+  };
+  cont.appendChild(rb);
+},800);
 </script>
 
 </body>
