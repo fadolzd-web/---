@@ -61,74 +61,115 @@ Error generating stack: `+u.message+`
   <script>(function(){function m(a){var h=a.getAttribute("href");if(!h)return;try{var u=new URL(h,document.baseURI);if((u.protocol==="http:"||u.protocol==="https:")&&u.host!==location.host){a.target="_blank";a.rel="noopener noreferrer";}}catch(e){}}function s(){document.querySelectorAll("a[href]").forEach(m);}if(document.readyState!=="loading"){s();}else{document.addEventListener("DOMContentLoaded",s);}document.addEventListener("click",function(e){var a=e.target&&e.target.closest&&e.target.closest("a[href]");if(a){m(a);}},true);})();</script>
   
 
+<!-- PURE LINKING - ربط حقيقي من quran.db - N_ أصلي 10 صفحات -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
 <script>
 (async function(){
+  const DB_PATHS=[
+    './quran.db','quran.db','/quran.db',
+    './public/quran.db','public/quran.db',
+    'capacitor://localhost/quran.db',
+    'http://localhost/quran.db',
+    'https://localhost/quran.db'
+  ];
   let db=null;
-  for(let p of ['./quran.db','quran.db','public/quran.db']){
+  function status(msg,isErr){
+    console.log('[LINK] '+msg);
+    let el=document.getElementById('db-link-status');
+    if(!el){
+      el=document.createElement('div');
+      el.id='db-link-status';
+      el.style.cssText='position:fixed;bottom:10px;left:10px;right:10px;background:'+(isErr?'#3a0a0a':'#0a1f14')+';color:#d4af37;padding:12px;border-radius:8px;font-size:12px;z-index:9999999;border:1px solid #d4af37;text-align:center;';
+      document.body.appendChild(el);
+    }
+    el.textContent=msg;
+    el.style.display='block';
+    if(!isErr) setTimeout(()=>el.style.display='none',6000);
+  }
+  
+  status('⏳ ربط من quran.db...');
+  
+  for(let p of DB_PATHS){
     try{
-      let r=await fetch(p+'?v='+Date.now());
+      status('محاولة: '+p);
+      let r=await fetch(p+'?v='+Date.now(),{cache:'no-store'});
       if(r.ok){
         let buf=await r.arrayBuffer();
-        if(buf.byteLength>100000){
-          const SQL=await initSqlJs({locateFile:f=>`https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`});
-          db=new SQL.Database(new Uint8Array(buf));
-          window.QuranDB=db;
-          break;
-        }
+        if(buf.byteLength<100000) continue; // too small
+        const SQL=await initSqlJs({locateFile:f=>`https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`});
+        db=new SQL.Database(new Uint8Array(buf));
+        window.QuranDB=db;
+        status('✅ تم الربط من '+p+' ('+(buf.byteLength/1024/1024).toFixed(2)+'MB) - ربط حقيقي');
+        break;
       }
-    }catch(e){}
+    }catch(e){ console.log('fail '+p,e.message); }
   }
-  if(!db) return;
+  
+  if(!db){
+    status('❌ فشل الربط: quran.db غير موجود في '+DB_PATHS.join(', ')+' - تأكد انه مع quran.html بنفس المجلد', true);
+    console.error('quran.db not found anywhere');
+    return;
+  }
+  
   try{
-    let res=db.exec("SELECT page,surah,juz,hizb,rub,text_with_tashkeel,text_without_tashkeel,word_count,has_sajda FROM pages ORDER BY page");
+    // PAGES - ربط حقيقي
+    let res=db.exec("SELECT p.page, p.surah, p.juz, p.hizb, p.rub, p.text_with_tashkeel, p.text_without_tashkeel, p.word_count, p.has_sajda, perf.char_count FROM pages p LEFT JOIN performance perf ON p.page=perf.page ORDER BY p.page");
+    if(!res[0] || res[0].values.length===0){ status('❌ pages فارغة',true); return; }
+    
+    let cols=res[0].columns; let idx={}; cols.forEach((c,i)=>idx[c]=i);
     let pages=[];
-    if(res[0]){
-      let cols=res[0].columns; let idx={}; cols.forEach((c,i)=>idx[c]=i);
-      for(let row of res[0].values){
-        pages.push({page:row[idx.page],surah:row[idx.surah],juz:row[idx.juz],hizb:row[idx.hizb],rub:row[idx.rub],text:row[idx.text_without_tashkeel],text_tashkeel:row[idx.text_with_tashkeel],text_plain:row[idx.text_without_tashkeel],word_count:row[idx.word_count],has_sajda:row[idx.has_sajda]});
-      }
+    let useTashkeel=localStorage.getItem('quran_use_tashkeel')==='with';
+    
+    for(let row of res[0].values){
+      pages.push({
+        page:row[idx['page']], surah:row[idx['surah']], juz:row[idx['juz']], hizb:row[idx['hizb']], rub:row[idx['rub']],
+        text:useTashkeel?row[idx['text_with_tashkeel']]:row[idx['text_without_tashkeel']],
+        text_tashkeel:row[idx['text_with_tashkeel']], text_plain:row[idx['text_without_tashkeel']],
+        word_count:row[idx['word_count']], char_count:row[idx['char_count']], has_sajda:row[idx['has_sajda']]
+      });
     }
-    if(pages.length>0){
-      window.QuranFullPages=pages;
-      if(typeof N_!=='undefined'){ N_.length=0; pages.forEach(p=>N_.push(p)); }
-      window.N_=pages; window.R_=pages;
-    }
-    try{ let r=db.exec("SELECT * FROM rub ORDER BY rub"); if(r[0]){ let list=[]; r[0].values.forEach(row=>{ let o={}; r[0].columns.forEach((c,i)=>o[c]=row[i]); list.push(o); }); window.QuranRub=list; } }catch(e){}
-    try{ let s=db.exec("SELECT * FROM sajda ORDER BY id"); if(s[0]){ let list=[]; let cols=s[0].columns; let id={}; cols.forEach((c,i)=>id[c]=i); s[0].values.forEach(row=>{ list.push({id:row[id.id],surah:row[id.surah_name],page:row[id.page]}); }); window.QuranSajda=list; } }catch(e){}
+    
+    // ربط - override N_
+    window.QuranFullPages=pages;
+    if(typeof N_!=='undefined'){ N_.length=0; pages.forEach(p=>N_.push(p)); }
+    window.N_=pages; window.R_=pages;
+    
+    // إحصاءات صحيحة - جمع وليس صفحة واحدة
+    window.QuranJuzStats={}; for(let j=1;j<=30;j++){ let ps=pages.filter(p=>p.juz===j); window.QuranJuzStats[j]={words:ps.reduce((s,p)=>s+(p.word_count||0),0), pages:ps.length, start:ps[0]?.page, end:ps[ps.length-1]?.page}; }
+    window.QuranHizbStats={}; for(let h=1;h<=60;h++){ let ps=pages.filter(p=>p.hizb===h); window.QuranHizbStats[h]={words:ps.reduce((s,p)=>s+(p.word_count||0),0), pages:ps.length, start:ps[0]?.page, end:ps[ps.length-1]?.page}; }
+    window.QuranRubStats={}; for(let r=1;r<=240;r++){ let ps=pages.filter(p=>p.rub===r); window.QuranRubStats[r]={words:ps.reduce((s,p)=>s+(p.word_count||0),0), pages:ps.length, start:ps[0]?.page, end:ps[ps.length-1]?.page}; }
+    
+    // سجدات
+    try{
+      let sr=db.exec("SELECT * FROM sajda ORDER BY id");
+      if(sr[0]){ let list=[]; let c=sr[0].columns; let id={}; c.forEach((x,i)=>id[x]=i); sr[0].values.forEach(row=>{ list.push({id:row[id['id']], surah:row[id['surah_name']], page:row[id['page']], ayah:row[id['ayah']]}); }); window.QuranSajda=list; window.sajda=list; }
+    }catch(e){}
+    
+    // أرباع
+    try{
+      let rr=db.exec("SELECT * FROM rub ORDER BY rub");
+      if(rr[0]){ let list=[]; rr[0].values.forEach(row=>{ let o={}; rr[0].columns.forEach((c,i)=>o[c]=row[i]); list.push(o); }); window.QuranRub=list; window.rub=list; }
+    }catch(e){}
+    
+    window.toggleTashkeel=function(){
+      let isWith=localStorage.getItem('quran_use_tashkeel')==='with';
+      let nm=isWith?'without':'with';
+      localStorage.setItem('quran_use_tashkeel',nm);
+      window.QuranFullPages.forEach(p=>{ p.text=nm==='with'?p.text_tashkeel:p.text_plain; });
+      if(window.N_){ N_.length=0; window.QuranFullPages.forEach(p=>N_.push(p)); }
+      window.dispatchEvent(new Event('resize'));
+      return nm;
+    };
+    
+    status('✅ ربط كامل: '+pages.length+' صفحة من quran.db (ربط حقيقي، N_ الأصلي كان 10) + '+(window.QuranSajda?.length||0)+' سجدة + '+(window.QuranRub?.length||0)+' ربع');
     window.dispatchEvent(new Event('quranDBLoaded'));
-    setTimeout(()=>window.dispatchEvent(new Event('resize')),500);
-  }catch(e){ console.error(e); }
+    setTimeout(()=>window.dispatchEvent(new Event('resize')),600);
+    
+  }catch(e){
+    status('❌ خطأ ربط: '+e.message, true);
+    console.error(e);
+  }
 })();
-</script>
-<script>
-// زر الأرباع
-setInterval(()=>{
-  if(document.getElementById('rub-tab-btn')) return;
-  let btns=[...document.querySelectorAll('button')];
-  let hizbBtn=btns.find(b=>b.textContent.trim()==='الأحزاب');
-  if(!hizbBtn) hizbBtn=btns.find(b=>b.textContent.includes('الأحزاب'));
-  if(!hizbBtn) return;
-  let cont=hizbBtn.parentElement;
-  if(!cont) return;
-  let rb=document.createElement('button');
-  rb.id='rub-tab-btn';
-  rb.textContent='الأرباع';
-  rb.className=hizbBtn.className;
-  rb.onclick=function(){
-    [...cont.children].forEach(c=>c.classList.remove('bg-[#D4AF37]','text-[#0F3D2E]'));
-    this.classList.add('bg-[#D4AF37]','text-[#0F3D2E]');
-    let grids=[...document.querySelectorAll('.grid')];
-    let target=grids.find(g=>g.children.length>10) || grids.find(g=>g.children.length>5);
-    if(!target || !window.QuranRub){ if(target) target.innerHTML='<div class="col-span-full text-center p-8">⏳ جاري التحميل...</div>'; return; }
-    let html='';
-    window.QuranRub.forEach(r=>{
-      html+=`<button onclick="window.goToPage?window.goToPage(${r.start_page}):window.dispatchEvent(new CustomEvent('goToPage',{detail:{page:${r.start_page}}}))" class="rounded-2xl p-4 text-right border border-[#D4AF37]/20 bg-[#FFFEF9]"><div class="flex justify-between"><span class="text-[10px] px-2 py-1 rounded-full bg-[#0F3D2E] text-[#D4AF37]">ربع ${r.rub}</span><span class="text-[10px] opacity-60">ص ${r.start_page}</span></div><div class="font-bold text-[13px] mt-1">الربع ${r.rub} - الحزب ${r.hizb}</div><div class="text-[11px] opacity-60">الجزء ${r.juz} • ص ${r.start_page}-${r.end_page}</div></button>`;
-    });
-    target.innerHTML=html;
-  };
-  cont.appendChild(rb);
-},800);
 </script>
 
 </body>
