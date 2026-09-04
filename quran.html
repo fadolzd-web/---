@@ -60,5 +60,74 @@ Error generating stack: `+u.message+`
 </script>
   <script>(function(){function m(a){var h=a.getAttribute("href");if(!h)return;try{var u=new URL(h,document.baseURI);if((u.protocol==="http:"||u.protocol==="https:")&&u.host!==location.host){a.target="_blank";a.rel="noopener noreferrer";}}catch(e){}}function s(){document.querySelectorAll("a[href]").forEach(m);}if(document.readyState!=="loading"){s();}else{document.addEventListener("DOMContentLoaded",s);}document.addEventListener("click",function(e){var a=e.target&&e.target.closest&&e.target.closest("a[href]");if(a){m(a);}},true);})();</script>
   
+
+<!-- SQL Loader for original Quran interface -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+<script id="quran-sql-integration">
+(async function(){
+  console.log('🔍 Quran SQL Integration - analyzing original file');
+  const DB_NAMES = ['quran.db', './quran.db', 'data/quran.db', './data/quran.db'];
+  const statusDiv = document.createElement('div');
+  statusDiv.id = 'sql-status';
+  statusDiv.style.cssText = 'position:fixed;bottom:10px;left:10px;right:10px;background:#0a1f14;border:1px solid #d4af37;color:#d4af37;padding:8px 12px;border-radius:8px;font-size:12px;z-index:99999;text-align:center;';
+  statusDiv.textContent = 'جاري البحث عن قاعدة البيانات...';
+  document.body.appendChild(statusDiv);
+  
+  let dbFile = null;
+  let dbPath = null;
+  
+  for(let p of DB_NAMES){
+    try{
+      statusDiv.textContent = 'جاري المحاولة: ' + p;
+      let r = await fetch(p);
+      if(r.ok){
+        dbFile = await r.arrayBuffer();
+        dbPath = p;
+        console.log('✅ Found DB at', p, dbFile.byteLength);
+        break;
+      }
+    }catch(e){ console.log('❌ Failed', p); }
+  }
+  
+  if(!dbFile){
+    statusDiv.textContent = '⚠️ لم يتم العثور على quran.db - ضعها بنفس مجلد quran.html باسم quran.db';
+    statusDiv.style.background = '#2a1a0a';
+    setTimeout(()=>statusDiv.remove(), 8000);
+    return;
+  }
+  
+  try{
+    statusDiv.textContent = 'جاري فتح قاعدة البيانات من: ' + dbPath;
+    const SQL = await initSqlJs({locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`});
+    const db = new SQL.Database(new Uint8Array(dbFile));
+    
+    let tables = db.exec("SELECT name FROM sqlite_master WHERE type='table'");
+    let tableNames = tables[0] ? tables[0].values.flat() : [];
+    console.log('Tables:', tableNames);
+    
+    statusDiv.textContent = '✅ تم تحميل قاعدة البيانات (' + (dbFile.byteLength/1024).toFixed(0) + 'KB) | الجداول: ' + tableNames.join(', ');
+    statusDiv.style.background = '#0a2a14';
+    
+    // Store globally for the React app to use
+    window.QuranDB = db;
+    window.QuranDBPath = dbPath;
+    
+    // Try to auto-inject into existing React state if possible
+    // The original file shows placeholder, we will try to find where it renders ayahs
+    setTimeout(()=>{
+      // Dispatch event so React can listen
+      window.dispatchEvent(new CustomEvent('quran-db-ready', {detail: {db, path: dbPath, tables: tableNames}}));
+      statusDiv.textContent += ' | جاهز للاستخدام';
+      setTimeout(()=>statusDiv.style.display='none', 3000);
+    }, 1000);
+    
+  }catch(e){
+    console.error('DB Error', e);
+    statusDiv.textContent = 'خطأ: ' + e.message;
+    statusDiv.style.background = '#2a0a0a';
+  }
+})();
+</script>
+
 </body>
 </html>
