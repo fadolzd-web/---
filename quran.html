@@ -61,144 +61,167 @@ Error generating stack: `+u.message+`
   <script>(function(){function m(a){var h=a.getAttribute("href");if(!h)return;try{var u=new URL(h,document.baseURI);if((u.protocol==="http:"||u.protocol==="https:")&&u.host!==location.host){a.target="_blank";a.rel="noopener noreferrer";}}catch(e){}}function s(){document.querySelectorAll("a[href]").forEach(m);}if(document.readyState!=="loading"){s();}else{document.addEventListener("DOMContentLoaded",s);}document.addEventListener("click",function(e){var a=e.target&&e.target.closest&&e.target.closest("a[href]");if(a){m(a);}},true);})();</script>
   
 
-<!-- FIX: Load and DISPLAY Quran from quran.db - patches original UI -->
+<!-- FINAL: ALL 604 PAGES FROM quran.db INCLUDING 1-10 -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
-<script id="quran-real-fix">
-(function(){
-  
-  // FIX: Try parent location and absolute paths because iframe srcdoc breaks relative fetch
-  const baseFromParent = (()=>{
+<script>
+(async function(){
+  const DB_PATHS = ['./quran.db','quran.db','/quran.db','./data/quran.db'];
+  let db=null, statusEl=null;
+  function showStatus(msg,err){
+    if(!statusEl){
+      statusEl=document.createElement('div');
+      statusEl.style.cssText='position:fixed;bottom:8px;left:8px;right:8px;background:'+(err?'#2a0a0a':'#0a1f14')+';color:#d4af37;padding:10px;border-radius:10px;font-size:12px;z-index:999999;border:1px solid #d4af37;text-align:center;';
+      document.body.appendChild(statusEl);
+    }
+    statusEl.textContent=msg;
+    statusEl.style.background=err?'#2a0a0a':'#0a1f14';
+    statusEl.style.display='block';
+    if(!err) setTimeout(()=>{if(statusEl) statusEl.style.display='none';},4000);
+  }
+  for(let p of DB_PATHS){
     try{
-      if(window.parent && window.parent !== window && window.parent.location.href){
-        let pHref = window.parent.location.href;
-        let base = pHref.substring(0, pHref.lastIndexOf('/')+1);
-        return base;
+      showStatus('جاري تحميل: '+p);
+      let r=await fetch(p+'?v='+Date.now(),{cache:'no-store'});
+      if(r.ok){
+        let buf=await r.arrayBuffer();
+        const SQL=await initSqlJs({locateFile:f=>`https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`});
+        db=new SQL.Database(new Uint8Array(buf));
+        window.QuranDB=db;
+        showStatus('✅ تم تحميل quran.db ('+(buf.byteLength/1024).toFixed(0)+'KB) - بناء 604 صفحة...');
+        break;
       }
     }catch(e){}
-    return '';
-  })();
-  const DB_PATHS = [
-    './quran.db','quran.db',
-    './data/quran.db','data/quran.db',
-    '/quran.db',
-    baseFromParent + 'quran.db',
-    baseFromParent + 'data/quran.db',
-    window.location.origin + '/quran.db',
-    window.location.href.substring(0, window.location.href.lastIndexOf('/')+1) + 'quran.db'
-  ].filter(Boolean);
-  console.log('Trying DB paths:', DB_PATHS, 'parent base:', baseFromParent);
-
-  let db = null;
-  let currentPageFromURL = 10;
-  
-  function showDebug(msg, isError){
-    let d = document.getElementById('quran-debug-status');
-    if(!d){
-      d = document.createElement('div');
-      d.id='quran-debug-status';
-      d.style.cssText='position:fixed;bottom:10px;left:10px;right:10px;background:#0a1f14;color:#d4af37;padding:10px;border-radius:8px;font-size:11px;z-index:999999;border:1px solid #d4af37;max-height:120px;overflow:auto;';
-      document.body.appendChild(d);
-    }
-    d.textContent = msg;
-    d.style.background = isError ? '#2a0a0a' : '#0a1f14';
-    console.log(msg);
   }
-  async function loadDB(){
-    showDebug('جاري البحث عن quran.db...');
-    for(let p of DB_PATHS){
-      try{
-        let r = await fetch(p);
-        if(r.ok){
-          let buf = await r.arrayBuffer();
-          const SQL = await initSqlJs({locateFile: f=>`https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`});
-          db = new SQL.Database(new Uint8Array(buf));
-          console.log('✅ Quran DB loaded', p, buf.byteLength, db);
-          showDebug('✅ تم تحميل quran.db من ' + p + ' (' + (buf.byteLength/1024).toFixed(0) + 'KB)');
-          setTimeout(()=>{ let d=document.getElementById('quran-debug-status'); if(d) d.style.display='none'; }, 4000);
-          window.QuranDB = db;
-          startPatching();
-          return;
+  if(!db){ showStatus('❌ quran.db غير موجود',true); return; }
+  
+  // Build all pages from DB
+  let pagesMap={};
+  try{
+    let res=db.exec("SELECT * FROM ayahs ORDER BY page, id");
+    if(!res[0] || res[0].values.length===0) res=db.exec("SELECT * FROM ayahs ORDER BY page_number, id");
+    if(!res[0] || res[0].values.length===0) res=db.exec("SELECT * FROM ayahs ORDER BY page_num, id");
+    if(res[0]){
+      let cols=res[0].columns;
+      let pageIdx=cols.findIndex(c=>c==='page'||c==='page_number'||c==='page_num');
+      let textIdx=cols.findIndex(c=>c==='text'||c==='ayah_text'||c==='content');
+      let numIdx=cols.findIndex(c=>c==='ayah_id'||c==='ayah_num'||c==='ayah');
+      if(textIdx===-1) textIdx=2;
+      if(pageIdx===-1) pageIdx=0;
+      for(let row of res[0].values){
+        let p=row[pageIdx];
+        if(!p) continue;
+        if(!pagesMap[p]) pagesMap[p]=[];
+        pagesMap[p].push({text:row[textIdx], num: numIdx>=0?row[numIdx]:'', row:row});
+      }
+    }
+  }catch(e){ console.error(e); }
+  
+  let fullPages=[];
+  for(let pNum in pagesMap){
+    let rows=pagesMap[pNum];
+    let text='';
+    for(let r of rows){
+      let t=r.text||'';
+      let n=r.num||'';
+      if(t && !t.includes('﴿')) text+=t+' ﴿'+n+'﴾ ';
+      else text+=t+' ';
+    }
+    fullPages.push({page:parseInt(pNum), text:text.trim()});
+  }
+  fullPages.sort((a,b)=>a.page-b.page);
+  window.QuranFullPages=fullPages;
+  window.QuranFullPagesMap={};
+  fullPages.forEach(p=>{ window.QuranFullPagesMap[p.page]=p; });
+  console.log('Built',fullPages.length,'pages from DB');
+  
+  // Override N_ and R_
+  window.N_=fullPages;
+  window.R_=fullPages;
+  window.lastPage=-1;
+  
+  // Replace ALL pages (1-604) from DB
+  setInterval(()=>{
+    try{
+      let m=document.body.innerText.match(/الصفحة\s*([\d٠-٩]+)/);
+      let pageNum=1;
+      if(m){
+        let map={'٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9'};
+        pageNum=parseInt(m[1].replace(/[٠-٩]/g,x=>map[x]))||1;
+      }
+      if(window.lastPage===pageNum) return;
+      let pd=window.QuranFullPagesMap[pageNum];
+      if(!pd || !pd.text) return;
+      
+      // Build HTML
+      let parts=pd.text.split(/﴿(\d+)﴾/g);
+      let html='<div data-from-db="true" style="line-height:2.8;font-family:Amiri,serif;font-size:22px;text-align:justify;padding:12px;direction:rtl">';
+      for(let i=0;i<parts.length;i++){
+        if(i%2===0){
+          if(parts[i].trim()) html+='<span>'+parts[i].trim()+' </span>';
+        }else{
+          html+='<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:#d4af37;color:#0f3d2e;font-size:11px;margin:0 4px;font-weight:900;vertical-align:middle">'+parts[i]+'</span> ';
         }
-      }catch(e){ console.log('fail',p,e); }
-    }
-    console.log('❌ No quran.db found');
-    showDebug('❌ لم يتم العثور على quran.db - المسارات: ' + DB_PATHS.join(', '), true);
-  }
-  
-  function startPatching(){
-    // Try to find current page number from UI
-    setInterval(()=>{
-      try{
-        let pageEl = document.querySelector('[class*="page"]');
-        let text = document.body.innerText;
-        let m = text.match(/الصفحة\s+(\d+)/);
-        if(m) currentPageFromURL = parseInt(m[1]);
-      }catch(e){}
-    }, 1000);
-    
-    // Main patch loop: replace placeholder with real ayahs
-    setInterval(()=>{
-      if(!db) return;
-      try{
-        let placeholder = document.evaluate("//*[contains(text(),'سيتم تحميل النص الكامل')]", document, null, 5, null).iterateNext();
-        if(placeholder){
-          let pageNum = currentPageFromURL || 11;
-          // Try to get page num from DOM
-          let pageNumEl = document.querySelector('[class*="صفحة"]');
-          if(pageNumEl){
-            let mm = pageNumEl.textContent.match(/(\d+)/);
-            if(mm) pageNum = parseInt(mm[1]);
+      }
+      html+='</div>';
+      
+      // Find and replace - try placeholder first
+      let replaced=false;
+      let walker=document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      let node, placeholders=[];
+      while(node=walker.nextNode()){
+        if(node.nodeValue && node.nodeValue.includes('سيتم تحميل النص الكامل')){
+          placeholders.push(node);
+        }
+      }
+      for(let n of placeholders){
+        let cont=n.parentElement;
+        let d=0;
+        while(cont && d<8){
+          if(cont.textContent.includes('سيتم تحميل النص الكامل')){
+            cont.innerHTML='<div data-from-db="true">'+html+'</div>';
+            replaced=true;
+            window.lastPage=pageNum;
+            break;
           }
-          
-          // Query DB for this page
-          let ayahs = [];
-          try{
-            let res = db.exec(`SELECT * FROM ayahs WHERE page = ${pageNum} ORDER BY surah_id, ayah_id`);
-            if(res[0]) ayahs = res[0].values;
-          }catch(e){
-            try{
-              let res = db.exec(`SELECT * FROM ayahs WHERE page_number = ${pageNum}`);
-              if(res[0]) ayahs = res[0].values;
-            }catch(e2){}
-          }
-          
-          if(ayahs.length > 0){
-            // Get column indexes
-            let cols = db.exec(`SELECT * FROM ayahs LIMIT 1`)[0].columns;
-            let textIdx = cols.indexOf('text');
-            if(textIdx === -1) textIdx = cols.indexOf('ayah_text');
-            if(textIdx === -1) textIdx = 2;
-            let surahIdx = cols.indexOf('surah_id');
-            let ayahIdx = cols.indexOf('ayah_id');
-            if(ayahIdx === -1) ayahIdx = cols.indexOf('ayah_num');
-            
-            let container = placeholder.closest('div');
-            if(container){
-              let html = '<div style="line-height:2.8;font-family:Amiri,serif;font-size:24px;text-align:justify;padding:20px">';
-              let lastSurah = null;
-              for(let row of ayahs){
-                let text = row[textIdx];
-                let sId = surahIdx>=0 ? row[surahIdx] : 0;
-                let aId = ayahIdx>=0 ? row[ayahIdx] : 0;
-                if(sId !== lastSurah && sId !== null){
-                  if(html.length > 50) html += '<br><br>';
-                  lastSurah = sId;
+          cont=cont.parentElement;
+          d++;
+        }
+        if(replaced) break;
+      }
+      
+      // For ALL pages including 1-10, also replace original Quran text
+      if(!replaced){
+        let cards=document.querySelectorAll('.page-curl, [class*="gold-border"]');
+        if(cards.length===0) cards=document.querySelectorAll('div.rounded-\[20px\], div.rounded-\[24px\]');
+        for(let card of cards){
+          if(card.querySelector('[data-from-db]')) continue;
+          let inner=card.innerHTML;
+          if(inner.includes('﴿') && inner.length>200){
+            // Find the innermost div with ayahs
+            let divs=card.querySelectorAll('div');
+            for(let div of divs){
+              if(div.textContent.includes('﴿') && div.textContent.length>100 && div.textContent.length<3000 && !div.querySelector('[data-from-db]')){
+                // Check if it's not a button or header
+                if(!div.closest('button') && div.children.length<20){
+                  div.innerHTML='<div data-from-db="true">'+html+'</div>';
+                  replaced=true;
+                  window.lastPage=pageNum;
+                  break;
                 }
-                html += text + ` <span style="color:#0f3d2e;background:#e8dcc0;border:1px solid #d4af37;border-radius:50%;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:11px;margin:0 4px">${aId}</span> `;
               }
-              html += '</div>';
-              // Replace placeholder's parent with real content
-              let parent = placeholder.parentElement.parentElement.parentElement;
-              if(parent) parent.innerHTML = html;
-              else placeholder.parentElement.innerHTML = html;
             }
           }
+          if(replaced) break;
         }
-      }catch(e){ console.log('patch error',e); }
-    }, 1500);
-  }
+      }
+      
+      if(replaced){
+        showStatus('✅ صفحة '+pageNum+' من قاعدة البيانات (كل الصفحات من DB)');
+      }
+      
+    }catch(e){ console.error('replace error',e); }
+  }, 700);
   
-  loadDB();
 })();
 </script>
 
