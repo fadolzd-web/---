@@ -5744,11 +5744,8 @@ window.openQuranSystem = async function(){
     document.body.style.overflow='hidden';
     let ifr=ov.querySelector('#q-iframe');
     if(ifr){
-      if(_quranCache && _quranCache.length>200){
-        try{ ifr.srcdoc=_quranCache; }catch(e){ ifr.src='data:text/html;charset=utf-8,'+encodeURIComponent(_quranCache); }
-      } else {
-        ifr.src='quran.html';
-      }
+      // FIX: Always use src='quran.html' so fetch('./quran.db') works inside iframe (srcdoc breaks relative paths)
+      ifr.src='quran.html?v=' + Date.now();
     }
     document.getElementById('q-close').onclick=function(){ ov.remove(); document.body.style.overflow=''; };
     ov.addEventListener('click',function(e){ if(e.target===ov) { ov.remove(); document.body.style.overflow=''; } });
@@ -6455,11 +6452,8 @@ window.openQuranSystem = async function(){
     document.body.style.overflow='hidden';
     let ifr=ov.querySelector('#q-iframe');
     if(ifr){
-      if(_quranCache && _quranCache.length>200){
-        try{ ifr.srcdoc=_quranCache; }catch(e){ ifr.src='data:text/html;charset=utf-8,'+encodeURIComponent(_quranCache); }
-      } else {
-        ifr.src='quran.html';
-      }
+      // FIX: Always use src='quran.html' so fetch('./quran.db') works inside iframe (srcdoc breaks relative paths)
+      ifr.src='quran.html?v=' + Date.now();
     }
     document.getElementById('q-close').onclick=function(){ ov.remove(); document.body.style.overflow=''; };
     ov.addEventListener('click',function(e){ if(e.target===ov) { ov.remove(); document.body.style.overflow=''; } });

@@ -65,11 +65,46 @@ Error generating stack: `+u.message+`
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
 <script id="quran-real-fix">
 (function(){
-  const DB_PATHS = ['./quran.db','quran.db','./data/quran.db','data/quran.db'];
+  
+  // FIX: Try parent location and absolute paths because iframe srcdoc breaks relative fetch
+  const baseFromParent = (()=>{
+    try{
+      if(window.parent && window.parent !== window && window.parent.location.href){
+        let pHref = window.parent.location.href;
+        let base = pHref.substring(0, pHref.lastIndexOf('/')+1);
+        return base;
+      }
+    }catch(e){}
+    return '';
+  })();
+  const DB_PATHS = [
+    './quran.db','quran.db',
+    './data/quran.db','data/quran.db',
+    '/quran.db',
+    baseFromParent + 'quran.db',
+    baseFromParent + 'data/quran.db',
+    window.location.origin + '/quran.db',
+    window.location.href.substring(0, window.location.href.lastIndexOf('/')+1) + 'quran.db'
+  ].filter(Boolean);
+  console.log('Trying DB paths:', DB_PATHS, 'parent base:', baseFromParent);
+
   let db = null;
   let currentPageFromURL = 10;
   
+  function showDebug(msg, isError){
+    let d = document.getElementById('quran-debug-status');
+    if(!d){
+      d = document.createElement('div');
+      d.id='quran-debug-status';
+      d.style.cssText='position:fixed;bottom:10px;left:10px;right:10px;background:#0a1f14;color:#d4af37;padding:10px;border-radius:8px;font-size:11px;z-index:999999;border:1px solid #d4af37;max-height:120px;overflow:auto;';
+      document.body.appendChild(d);
+    }
+    d.textContent = msg;
+    d.style.background = isError ? '#2a0a0a' : '#0a1f14';
+    console.log(msg);
+  }
   async function loadDB(){
+    showDebug('جاري البحث عن quran.db...');
     for(let p of DB_PATHS){
       try{
         let r = await fetch(p);
@@ -78,6 +113,8 @@ Error generating stack: `+u.message+`
           const SQL = await initSqlJs({locateFile: f=>`https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`});
           db = new SQL.Database(new Uint8Array(buf));
           console.log('✅ Quran DB loaded', p, buf.byteLength, db);
+          showDebug('✅ تم تحميل quran.db من ' + p + ' (' + (buf.byteLength/1024).toFixed(0) + 'KB)');
+          setTimeout(()=>{ let d=document.getElementById('quran-debug-status'); if(d) d.style.display='none'; }, 4000);
           window.QuranDB = db;
           startPatching();
           return;
@@ -85,6 +122,7 @@ Error generating stack: `+u.message+`
       }catch(e){ console.log('fail',p,e); }
     }
     console.log('❌ No quran.db found');
+    showDebug('❌ لم يتم العثور على quran.db - المسارات: ' + DB_PATHS.join(', '), true);
   }
   
   function startPatching(){
