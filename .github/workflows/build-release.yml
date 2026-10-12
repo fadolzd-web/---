@@ -212,6 +212,43 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: taqweem-EMBEDDED-QURAN-APK
+          path: android/app/build/outputs/apk/release/*.apk}
+              @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
+          }
+          JAVA
+
+      - name: Decode keystore
+        run: |
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+          else
+            echo "Generating keystore - WARNING: will break updates!"
+            keytool -genkey -v -keystore android/app/release.keystore -alias taqweem -keyalg RSA -keysize 2048 -validity 10000 -storepass taqweem123 -keypass taqweem123 -dname "CN=Taqweem, OU=Taqweem, O=Taqweem, L=Tripoli, S=North, C=LB"
+            echo "KEYSTORE_PASSWORD=taqweem123" >> $GITHUB_ENV
+            echo "KEY_ALIAS=taqweem" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=taqweem123" >> $GITHUB_ENV
+          fi
+
+      - name: Build SIGNED RELEASE
+        run: |
+          cd android
+          chmod +x gradlew
+          STORE_PASS=${{ secrets.KEYSTORE_PASSWORD }}
+          if [ -z "$STORE_PASS" ]; then STORE_PASS=${{ env.KEYSTORE_PASSWORD }}; fi
+          if [ -z "$STORE_PASS" ]; then STORE_PASS=taqweem123; fi
+          ALIAS=${{ secrets.KEY_ALIAS }}
+          if [ -z "$ALIAS" ]; then ALIAS=${{ env.KEY_ALIAS }}; fi
+          if [ -z "$ALIAS" ]; then ALIAS=taqweem; fi
+          KEY_PASS=${{ secrets.KEY_PASSWORD }}
+          if [ -z "$KEY_PASS" ]; then KEY_PASS=${{ env.KEY_PASSWORD }}; fi
+          if [ -z "$KEY_PASS" ]; then KEY_PASS=taqweem123; fi
+         ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=$STORE_PASS -Pandroid.injected.signing.key.alias=$ALIAS -Pandroid.injected.signing.key.password=$KEY_PASS
+          ls -lh app/build/outputs/apk/release/
+
+      - name: Upload SIGNED APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: taqweem-EMBEDDED-QURAN-APK
           path: android/app/build/outputs/apk/release/*.apk                  w.getSettings().setGeolocationEnabled(true);
                   w.getSettings().setDomStorageEnabled(true);
                   w.getSettings().setJavaScriptEnabled(true);
