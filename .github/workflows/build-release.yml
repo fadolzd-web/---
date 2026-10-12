@@ -13,6 +13,7 @@ jobs:
             if [ "$f" = "android" ] || [ "$f" = ".github" ] || [ "$f" = "node_modules" ] || [ "$f" = "www" ] || [ "$f" = ".git" ]; then continue; fi
             cp -r "$f" www/ 2>/dev/null || true
           done
+          ls -la www/ | head -30
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -20,7 +21,7 @@ jobs:
         with:
           java-version: 21
           distribution: temurin
-      # تم حذف android-actions/setup-android@v3 لأنه هو سبب الفشل
+      - uses: android-actions/setup-android@v3
       - name: Install
         run: |
           npm install || true
@@ -33,92 +34,255 @@ jobs:
       - name: Permissions + App Name
         run: |
           python3 << 'PY'
-          import os, shutil
+          import os
           mf="android/app/src/main/AndroidManifest.xml"
-          txt=open(mf,"r",encoding="utf-8").read()
+          c=open(mf,"r",encoding="utf-8").read()
           lines=[]
-          for l in txt.splitlines():
-              if "ACCESS_FINE_LOCATION" in l: continue
-              if "ACCESS_COARSE_LOCATION" in l: continue
-              if "ACCESS_BACKGROUND_LOCATION" in l: continue
-              if "POST_NOTIFICATIONS" in l: continue
-              if "SCHEDULE_EXACT_ALARM" in l: continue
-              if "USE_EXACT_ALARM" in l: continue
-              if "RECEIVE_BOOT_COMPLETED" in l: continue
-              if "WAKE_LOCK" in l: continue
-              if "VIBRATE" in l: continue
-              if "FOREGROUND_SERVICE" in l: continue
+          for l in c.splitlines():
+              if any(x in l for x in ["ACCESS_FINE_LOCATION","ACCESS_COARSE_LOCATION","ACCESS_BACKGROUND_LOCATION","POST_NOTIFICATIONS","SCHEDULE_EXACT_ALARM","USE_EXACT_ALARM","RECEIVE_BOOT_COMPLETED","WAKE_LOCK","VIBRATE","FOREGROUND_SERVICE"]):
+                  continue
               lines.append(l)
           c="\n".join(lines)
-          perms=" <uses-permission android:name=\"android.permission.INTERNET\" />\n <uses-permission android:name=\"android.permission.ACCESS_FINE_LOCATION\" />\n <uses-permission android:name=\"android.permission.ACCESS_COARSE_LOCATION\" />\n <uses-permission android:name=\"android.permission.ACCESS_BACKGROUND_LOCATION\" />\n <uses-permission android:name=\"android.permission.POST_NOTIFICATIONS\" />\n <uses-permission android:name=\"android.permission.SCHEDULE_EXACT_ALARM\" />\n <uses-permission android:name=\"android.permission.USE_EXACT_ALARM\" />\n <uses-permission android:name=\"android.permission.RECEIVE_BOOT_COMPLETED\" />\n <uses-permission android:name=\"android.permission.WAKE_LOCK\" />\n <uses-permission android:name=\"android.permission.VIBRATE\" />\n <uses-permission android:name=\"android.permission.FOREGROUND_SERVICE\" />\n <uses-feature android:name=\"android.hardware.location.gps\" android:required=\"false\" />\n <uses-feature android:name=\"android.hardware.sensor.compass\" android:required=\"false\" />\n"
+          perms='''
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+              <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+              <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+              <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+              <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+              <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+              <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+              <uses-permission android:name="android.permission.WAKE_LOCK" />
+              <uses-permission android:name="android.permission.VIBRATE" />
+              <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+              <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+              <uses-feature android:name="android.hardware.sensor.compass" android:required="false" />
+          '''
           c=c.replace('android:label="@string/app_name"','android:label="التقويم الشامل"')
           if 'android:label="التقويم الشامل"' not in c:
               c=c.replace('<application', '<application android:label="التقويم الشامل"')
-          c=c.replace("<application",perms+"\n <application")
+          c=c.replace("<application",perms+"\n    <application")
           open(mf,"w",encoding="utf-8").write(c)
+          print("manifest patched")
+          sp="android/app/src/main/res/values/strings.xml"
+          if os.path.exists(sp):
+              s=open(sp,"r",encoding="utf-8").read()
+              s=s.replace(">App<",">التقويم الشامل<").replace(">app<",">التقويم الشامل<")
+              if "التقويم الشامل" not in s:
+                  s=s.replace("<string name=\"app_name\">","<string name=\"app_name\">التقويم الشامل</string><string name=\"old\">")
+              open(sp,"w",encoding="utf-8").write(s)
+          os.makedirs("android/app/src/main/res/raw", exist_ok=True)
+          if os.path.exists("beep.wav"):
+              import shutil; shutil.copy("beep.wav","android/app/src/main/res/raw/beep.wav")
+          elif os.path.exists("www/beep.wav"):
+              import shutil; shutil.copy("www/beep.wav","android/app/src/main/res/raw/beep.wav")
           PY
-      - name: Icon + Splash FIX
+      - name: Icon + Splash FIX duplicate
         run: |
           python3 << 'PY'
           from PIL import Image
-          import os, shutil
-          icon_path="icon.png" if os.path.exists("icon.png") else "www/icon.png"
+          import os, glob, shutil
+          icon_path=None
+          for p in ["icon.png","www/icon.png"]:
+              if os.path.exists(p):
+                  icon_path=p
+                  break
+          if not icon_path:
+              print("NO icon.png found!")
+              exit(0)
           im=Image.open(icon_path).convert("RGBA")
           v26_path="android/app/src/main/res/mipmap-anydpi-v26"
-          shutil.rmtree(v26_path, ignore_errors=True)
+          if os.path.exists(v26_path):
+              shutil.rmtree(v26_path)
           os.makedirs(v26_path, exist_ok=True)
-          adaptive_xml="<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<adaptive-icon xmlns:android=\"http://schemas.android.com/apk/res/android\">\n <background android:drawable=\"@color/ic_launcher_background\"/>\n <foreground android:drawable=\"@mipmap/ic_launcher_foreground\"/>\n</adaptive-icon>"
-          open(v26_path+"/ic_launcher.xml","w").write(adaptive_xml)
-          open(v26_path+"/ic_launcher_round.xml","w").write(adaptive_xml)
-          open("android/app/src/main/res/values/colors.xml","w").write('<resources><color name="ic_launcher_background">#0a1f14</color></resources>')
+          adaptive_xml='''<?xml version="1.0" encoding="utf-8"?>
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@color/ic_launcher_background"/>
+              <foreground android:drawable="@mipmap/ic_launcher_foreground"/>
+          </adaptive-icon>'''
+          open(f"{v26_path}/ic_launcher.xml","w").write(adaptive_xml)
+          open(f"{v26_path}/ic_launcher_round.xml","w").write(adaptive_xml)
+          for dup in glob.glob("android/app/src/main/res/values/ic_launcher_background.xml"):
+              try: os.remove(dup)
+              except: pass
+          for dup in glob.glob("android/app/src/main/res/values/ic_launcher_background.xml*"):
+              try:
+                  if os.path.exists(dup): os.remove(dup)
+              except: pass
+          for vf in glob.glob("android/app/src/main/res/values/*.xml"):
+              if vf.endswith("colors.xml"): continue
+              try:
+                  txt=open(vf,"r",encoding="utf-8").read()
+                  if "ic_launcher_background" in txt and "ic_launcher_foreground" not in txt.lower():
+                      os.remove(vf)
+              except: pass
+          os.makedirs("android/app/src/main/res/values", exist_ok=True)
+          colors_path="android/app/src/main/res/values/colors.xml"
+          if not os.path.exists(colors_path):
+              open(colors_path,"w").write('<resources><color name="ic_launcher_background">#0a1f14</color></resources>')
+          else:
+              try:
+                  txt=open(colors_path,"r",encoding="utf-8").read()
+                  if "ic_launcher_background" not in txt:
+                      if "</resources>" in txt:
+                          txt=txt.replace("</resources>",'    <color name="ic_launcher_background">#0a1f14</color>\n</resources>')
+                      else:
+                          txt+='\n<color name="ic_launcher_background">#0a1f14</color>\n</resources>'
+                      open(colors_path,"w",encoding="utf-8").write(txt)
+              except:
+                  open(colors_path,"w").write('<resources><color name="ic_launcher_background">#0a1f14</color></resources>')
           sizes={"mipmap-mdpi":48,"mipmap-hdpi":72,"mipmap-xhdpi":96,"mipmap-xxhdpi":144,"mipmap-xxxhdpi":192}
           for folder,size in sizes.items():
-              p="android/app/src/main/res/"+folder
+              p=f"android/app/src/main/res/{folder}"
               os.makedirs(p,exist_ok=True)
-              im.resize((size,size), Image.LANCZOS).save(p+"/ic_launcher.png","PNG")
-              im.resize((size,size), Image.LANCZOS).save(p+"/ic_launcher_round.png","PNG")
-              fg=Image.new("RGBA",(int(size*1.5),int(size*1.5)),(0,0,0,0))
-              inn=int(size*1.5*0.65); ii=im.resize((inn,inn), Image.LANCZOS)
-              fg.paste(ii, ((fg.width-inn)//2,(fg.height-inn)//2), ii)
-              fg.save(p+"/ic_launcher_foreground.png","PNG")
+              im.resize((size,size), Image.LANCZOS).save(f"{p}/ic_launcher.png","PNG")
+              im.resize((size,size), Image.LANCZOS).save(f"{p}/ic_launcher_round.png","PNG")
+              fg_size=int(size*1.5)
+              fg=Image.new("RGBA",(fg_size,fg_size),(0,0,0,0))
+              inner=int(fg_size*0.65)
+              inner_im=im.resize((inner,inner), Image.LANCZOS)
+              fg.paste(inner_im, ((fg_size-inner)//2,(fg_size-inner)//2), inner_im)
+              fg.save(f"{p}/ic_launcher_foreground.png","PNG")
+          bg_color=(10,31,20)
+          splash_w, splash_h = 1080, 1920
+          splash=Image.new("RGB", (splash_w, splash_h), bg_color)
+          icon_size=500
+          icon_resized=im.resize((icon_size,icon_size), Image.LANCZOS)
+          x=(splash_w-icon_size)//2
+          y=(splash_h-icon_size)//2 - 100
+          splash_rgba=splash.convert("RGBA")
+          splash_rgba.paste(icon_resized, (x,y), icon_resized)
+          splash=splash_rgba.convert("RGB")
+          for d in ["drawable", "drawable-port", "drawable-land"]:
+              p=f"android/app/src/main/res/{d}"
+              os.makedirs(p,exist_ok=True)
+              splash.save(f"{p}/splash.png","PNG")
           PY
-      - name: MainActivity - STABLE COMPASS FIX
+      - name: MainActivity - STABLE COMPASS FIX - no jump 28 to 227
         run: |
           cat > android/app/src/main/java/com/fadol/taqweem/MainActivity.java <<'JAVA'
           package com.fadol.taqweem;
-          import android.os.Bundle; import android.webkit.GeolocationPermissions; import android.webkit.WebChromeClient; import android.webkit.WebView;
-          import com.getcapacitor.BridgeActivity; import android.hardware.Sensor; import android.hardware.SensorEvent; import android.hardware.SensorEventListener; import android.hardware.SensorManager;
-          import android.Manifest; import android.content.pm.PackageManager; import androidx.core.app.ActivityCompat; import androidx.core.content.ContextCompat;
+          import android.os.Bundle;
+          import android.webkit.GeolocationPermissions;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebView;
+          import com.getcapacitor.BridgeActivity;
+          import android.hardware.Sensor;
+          import android.hardware.SensorEvent;
+          import android.hardware.SensorEventListener;
+          import android.hardware.SensorManager;
+          import android.Manifest;
+          import android.content.pm.PackageManager;
+          import androidx.core.app.ActivityCompat;
+          import androidx.core.content.ContextCompat;
+
           public class MainActivity extends BridgeActivity implements SensorEventListener {
-              private static final int LOC_PERM_CODE = 1001; private SensorManager sensorManager; private Sensor accSensor, magSensor; private float[] gravity, geomagnetic;
-              @Override protected void onCreate(Bundle savedInstanceState) { super.onCreate(savedInstanceState);
-                  if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)!= PackageManager.PERMISSION_GRANTED) { ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, LOC_PERM_CODE); }
-                  WebView w = (WebView) this.bridge.getWebView(); w.getSettings().setGeolocationEnabled(true); w.getSettings().setDomStorageEnabled(true);
-                  w.setWebChromeClient(new WebChromeClient(){ @Override public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback){ callback.invoke(origin, true, true); } });
-                  sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE); accSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER); magSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD); }
-              @Override public void onResume() { super.onResume(); if(sensorManager!= null){ sensorManager.registerListener(this, accSensor, SensorManager.SENSOR_DELAY_GAME); sensorManager.registerListener(this, magSensor, SensorManager.SENSOR_DELAY_GAME); } }
-              @Override public void onPause() { super.onPause(); if(sensorManager!= null) sensorManager.unregisterListener(this); }
-              @Override public void onSensorChanged(SensorEvent event) {
+              private static final int LOC_PERM_CODE = 1001;
+              private SensorManager sensorManager;
+              private Sensor accSensor, magSensor;
+              private float[] gravity, geomagnetic;
+
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                      ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, LOC_PERM_CODE);
+                  }
+                  WebView w = (WebView) this.bridge.getWebView();
+                  w.getSettings().setGeolocationEnabled(true);
+                  w.getSettings().setDomStorageEnabled(true);
+                  w.getSettings().setJavaScriptEnabled(true);
+                  w.getSettings().setAllowFileAccess(true);
+                  w.getSettings().setDatabaseEnabled(true);
+                  w.getSettings().setMixedContentMode(android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+
+                  sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+                  accSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+                  magSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+
+                  w.setWebChromeClient(new WebChromeClient(){
+                      @Override
+                      public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback){
+                          callback.invoke(origin, true, true);
+                      }
+                  });
+              }
+
+              @Override
+              public void onResume() {
+                  super.onResume();
+                  if(sensorManager != null){
+                      sensorManager.registerListener(this, accSensor, SensorManager.SENSOR_DELAY_GAME);
+                      sensorManager.registerListener(this, magSensor, SensorManager.SENSOR_DELAY_GAME);
+                  }
+              }
+
+              @Override
+              public void onPause() {
+                  super.onPause();
+                  if(sensorManager != null) sensorManager.unregisterListener(this);
+              }
+
+              @Override
+              public void onSensorChanged(SensorEvent event) {
                   if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) gravity = event.values.clone();
                   if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) geomagnetic = event.values.clone();
-                  if (gravity!= null && geomagnetic!= null) { float[] R=new float[9]; float[] I=new float[9]; if(SensorManager.getRotationMatrix(R,I,gravity,geomagnetic)){ float[] o=new float[3]; SensorManager.getOrientation(R,o); float az=(float)Math.toDegrees(o[0]); az=(az+360)%360; WebView w=(WebView)this.bridge.getWebView(); if(w!= null) w.evaluateJavascript("if(window.onNativeAzimuth) window.onNativeAzimuth("+az+")", null); } }
+                  if (gravity != null && geomagnetic != null) {
+                      float[] R = new float[9];
+                      float[] I = new float[9];
+                      boolean success = SensorManager.getRotationMatrix(R, I, gravity, geomagnetic);
+                      if (success) {
+                          float[] orientation = new float[3];
+                          SensorManager.getOrientation(R, orientation);
+                          float az = (float) Math.toDegrees(orientation[0]);
+                          az = (az + 360) % 360;
+                          WebView w = (WebView) this.bridge.getWebView();
+                          if(w != null) w.evaluateJavascript("if(window.onNativeAzimuth) window.onNativeAzimuth("+az+")", null);
+                      }
+                  }
               }
               @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
-              @Override public void onRequestPermissionsResult(int r, String[] p, int[] g){ super.onRequestPermissionsResult(r,p,g); if(r==LOC_PERM_CODE && g.length>0 && g[0]==PackageManager.PERMISSION_GRANTED){ WebView w=(WebView)this.bridge.getWebView(); if(w!= null) w.reload(); } }
+
+              @Override
+              public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+                  super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+                  if (requestCode == LOC_PERM_CODE && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                      WebView w = (WebView) this.bridge.getWebView();
+                      if (w != null) w.reload();
+                  }
+              }
           }
           JAVA
-      - name: Generate or Decode keystore
+      - name: Generate or Decode keystore - SIGNED APK FIX
         run: |
-          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
-          else keytool -genkey -v -keystore android/app/release.keystore -alias taqweem -keyalg RSA -keysize 2048 -validity 10000 -storepass taqweem123 -keypass taqweem123 -dname "CN=Taqweem, OU=Taqweem, O=Taqweem, L=Tripoli, S=North, C=LB"; echo "KEYSTORE_PASSWORD=taqweem123" >> $GITHUB_ENV; echo "KEY_ALIAS=taqweem" >> $GITHUB_ENV; echo "KEY_PASSWORD=taqweem123" >> $GITHUB_ENV; fi
+          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
+            echo "Using secrets keystore"
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+          else
+            echo "No secrets - generating keystore to fix 'package invalid'"
+            keytool -genkey -v -keystore android/app/release.keystore -alias taqweem -keyalg RSA -keysize 2048 -validity 10000 -storepass taqweem123 -keypass taqweem123 -dname "CN=Taqweem, OU=Taqweem, O=Taqweem, L=Tripoli, S=North, C=LB"
+            echo "KEYSTORE_PASSWORD=taqweem123" >> $GITHUB_ENV
+            echo "KEY_ALIAS=taqweem" >> $GITHUB_ENV
+            echo "KEY_PASSWORD=taqweem123" >> $GITHUB_ENV
+          fi
+          ls -lh android/app/release.keystore
       - name: Build SIGNED RELEASE
         run: |
-          cd android; chmod +x gradlew
-          STORE_PASS=${{ secrets.KEYSTORE_PASSWORD }}; if [ -z "$STORE_PASS" ]; then STORE_PASS=${{ env.KEYSTORE_PASSWORD }}; fi; if [ -z "$STORE_PASS" ]; then STORE_PASS=taqweem123; fi
-          ALIAS=${{ secrets.KEY_ALIAS }}; if [ -z "$ALIAS" ]; then ALIAS=${{ env.KEY_ALIAS }}; fi; if [ -z "$ALIAS" ]; then ALIAS=taqweem; fi
-          KEY_PASS=${{ secrets.KEY_PASSWORD }}; if [ -z "$KEY_PASS" ]; then KEY_PASS=${{ env.KEY_PASSWORD }}; fi; if [ -z "$KEY_PASS" ]; then KEY_PASS=taqweem123; fi
-         ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=$STORE_PASS -Pandroid.injected.signing.key.alias=$ALIAS -Pandroid.injected.signing.key.password=$KEY_PASS
-         ./gradlew bundleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=$STORE_PASS -Pandroid.injected.signing.key.alias=$ALIAS -Pandroid.injected.signing.key.password=$KEY_PASS || true
+          cd android
+          chmod +x gradlew
+          STORE_PASS=${{ secrets.KEYSTORE_PASSWORD }}
+          if [ -z "$STORE_PASS" ]; then STORE_PASS=${{ env.KEYSTORE_PASSWORD }}; fi
+          if [ -z "$STORE_PASS" ]; then STORE_PASS=taqweem123; fi
+          ALIAS=${{ secrets.KEY_ALIAS }}
+          if [ -z "$ALIAS" ]; then ALIAS=${{ env.KEY_ALIAS }}; fi
+          if [ -z "$ALIAS" ]; then ALIAS=taqweem; fi
+          KEY_PASS=${{ secrets.KEY_PASSWORD }}
+          if [ -z "$KEY_PASS" ]; then KEY_PASS=${{ env.KEY_PASSWORD }}; fi
+          if [ -z "$KEY_PASS" ]; then KEY_PASS=taqweem123; fi
+          ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=$STORE_PASS -Pandroid.injected.signing.key.alias=$ALIAS -Pandroid.injected.signing.key.password=$KEY_PASS
+          ls -lh app/build/outputs/apk/release/
+          ./gradlew bundleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=$STORE_PASS -Pandroid.injected.signing.key.alias=$ALIAS -Pandroid.injected.signing.key.password=$KEY_PASS || true
+          ls -lh app/build/outputs/bundle/release/ || true
       - name: Upload SIGNED APK
         uses: actions/upload-artifact@v4
         with:
