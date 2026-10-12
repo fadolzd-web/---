@@ -34,7 +34,7 @@ jobs:
       - name: Permissions + App Name
         run: |
           python3 << 'PY'
-          import os
+          import os, shutil
           mf="android/app/src/main/AndroidManifest.xml"
           c=open(mf,"r",encoding="utf-8").read()
           lines=[]
@@ -55,27 +55,12 @@ jobs:
               <uses-permission android:name="android.permission.WAKE_LOCK" />
               <uses-permission android:name="android.permission.VIBRATE" />
               <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-              <uses-feature android:name="android.hardware.location.gps" android:required="false" />
-              <uses-feature android:name="android.hardware.sensor.compass" android:required="false" />
           '''
           c=c.replace('android:label="@string/app_name"','android:label="التقويم الشامل"')
           if 'android:label="التقويم الشامل"' not in c:
               c=c.replace('<application', '<application android:label="التقويم الشامل"')
-          c=c.replace("<application",perms+"\n    <application")
+          c=c.replace("<application",perms+"\n <application")
           open(mf,"w",encoding="utf-8").write(c)
-          print("manifest patched")
-          sp="android/app/src/main/res/values/strings.xml"
-          if os.path.exists(sp):
-              s=open(sp,"r",encoding="utf-8").read()
-              s=s.replace(">App<",">التقويم الشامل<").replace(">app<",">التقويم الشامل<")
-              if "التقويم الشامل" not in s:
-                  s=s.replace("<string name=\"app_name\">","<string name=\"app_name\">التقويم الشامل</string><string name=\"old\">")
-              open(sp,"w",encoding="utf-8").write(s)
-          os.makedirs("android/app/src/main/res/raw", exist_ok=True)
-          if os.path.exists("beep.wav"):
-              import shutil; shutil.copy("beep.wav","android/app/src/main/res/raw/beep.wav")
-          elif os.path.exists("www/beep.wav"):
-              import shutil; shutil.copy("www/beep.wav","android/app/src/main/res/raw/beep.wav")
           PY
       - name: Icon + Splash FIX duplicate
         run: |
@@ -102,35 +87,10 @@ jobs:
           </adaptive-icon>'''
           open(f"{v26_path}/ic_launcher.xml","w").write(adaptive_xml)
           open(f"{v26_path}/ic_launcher_round.xml","w").write(adaptive_xml)
-          for dup in glob.glob("android/app/src/main/res/values/ic_launcher_background.xml"):
-              try: os.remove(dup)
-              except: pass
-          for dup in glob.glob("android/app/src/main/res/values/ic_launcher_background.xml*"):
-              try:
-                  if os.path.exists(dup): os.remove(dup)
-              except: pass
-          for vf in glob.glob("android/app/src/main/res/values/*.xml"):
-              if vf.endswith("colors.xml"): continue
-              try:
-                  txt=open(vf,"r",encoding="utf-8").read()
-                  if "ic_launcher_background" in txt and "ic_launcher_foreground" not in txt.lower():
-                      os.remove(vf)
-              except: pass
-          os.makedirs("android/app/src/main/res/values", exist_ok=True)
           colors_path="android/app/src/main/res/values/colors.xml"
+          os.makedirs("android/app/src/main/res/values", exist_ok=True)
           if not os.path.exists(colors_path):
               open(colors_path,"w").write('<resources><color name="ic_launcher_background">#0a1f14</color></resources>')
-          else:
-              try:
-                  txt=open(colors_path,"r",encoding="utf-8").read()
-                  if "ic_launcher_background" not in txt:
-                      if "</resources>" in txt:
-                          txt=txt.replace("</resources>",'    <color name="ic_launcher_background">#0a1f14</color>\n</resources>')
-                      else:
-                          txt+='\n<color name="ic_launcher_background">#0a1f14</color>\n</resources>'
-                      open(colors_path,"w",encoding="utf-8").write(txt)
-              except:
-                  open(colors_path,"w").write('<resources><color name="ic_launcher_background">#0a1f14</color></resources>')
           sizes={"mipmap-mdpi":48,"mipmap-hdpi":72,"mipmap-xhdpi":96,"mipmap-xxhdpi":144,"mipmap-xxxhdpi":192}
           for folder,size in sizes.items():
               p=f"android/app/src/main/res/{folder}"
@@ -143,22 +103,8 @@ jobs:
               inner_im=im.resize((inner,inner), Image.LANCZOS)
               fg.paste(inner_im, ((fg_size-inner)//2,(fg_size-inner)//2), inner_im)
               fg.save(f"{p}/ic_launcher_foreground.png","PNG")
-          bg_color=(10,31,20)
-          splash_w, splash_h = 1080, 1920
-          splash=Image.new("RGB", (splash_w, splash_h), bg_color)
-          icon_size=500
-          icon_resized=im.resize((icon_size,icon_size), Image.LANCZOS)
-          x=(splash_w-icon_size)//2
-          y=(splash_h-icon_size)//2 - 100
-          splash_rgba=splash.convert("RGBA")
-          splash_rgba.paste(icon_resized, (x,y), icon_resized)
-          splash=splash_rgba.convert("RGB")
-          for d in ["drawable", "drawable-port", "drawable-land"]:
-              p=f"android/app/src/main/res/{d}"
-              os.makedirs(p,exist_ok=True)
-              splash.save(f"{p}/splash.png","PNG")
           PY
-      - name: MainActivity - STABLE COMPASS FIX - no jump 28 to 227
+      - name: MainActivity - STABLE COMPASS FIX
         run: |
           cat > android/app/src/main/java/com/fadol/taqweem/MainActivity.java <<'JAVA'
           package com.fadol.taqweem;
@@ -175,61 +121,33 @@ jobs:
           import android.content.pm.PackageManager;
           import androidx.core.app.ActivityCompat;
           import androidx.core.content.ContextCompat;
-
           public class MainActivity extends BridgeActivity implements SensorEventListener {
               private static final int LOC_PERM_CODE = 1001;
               private SensorManager sensorManager;
               private Sensor accSensor, magSensor;
               private float[] gravity, geomagnetic;
-
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
+              @Override protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
-                  if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                  if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)!= PackageManager.PERMISSION_GRANTED) {
                       ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, LOC_PERM_CODE);
                   }
                   WebView w = (WebView) this.bridge.getWebView();
                   w.getSettings().setGeolocationEnabled(true);
                   w.getSettings().setDomStorageEnabled(true);
-                  w.getSettings().setJavaScriptEnabled(true);
-                  w.getSettings().setAllowFileAccess(true);
-                  w.getSettings().setDatabaseEnabled(true);
-                  w.getSettings().setMixedContentMode(android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-
+                  w.setWebChromeClient(new WebChromeClient(){
+                      @Override public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback){ callback.invoke(origin, true, true); }
+                  });
                   sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
                   accSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
                   magSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
-
-                  w.setWebChromeClient(new WebChromeClient(){
-                      @Override
-                      public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback){
-                          callback.invoke(origin, true, true);
-                      }
-                  });
               }
-
-              @Override
-              public void onResume() {
-                  super.onResume();
-                  if(sensorManager != null){
-                      sensorManager.registerListener(this, accSensor, SensorManager.SENSOR_DELAY_GAME);
-                      sensorManager.registerListener(this, magSensor, SensorManager.SENSOR_DELAY_GAME);
-                  }
-              }
-
-              @Override
-              public void onPause() {
-                  super.onPause();
-                  if(sensorManager != null) sensorManager.unregisterListener(this);
-              }
-
-              @Override
-              public void onSensorChanged(SensorEvent event) {
+              @Override public void onResume() { super.onResume(); if(sensorManager!= null){ sensorManager.registerListener(this, accSensor, SensorManager.SENSOR_DELAY_GAME); sensorManager.registerListener(this, magSensor, SensorManager.SENSOR_DELAY_GAME); } }
+              @Override public void onPause() { super.onPause(); if(sensorManager!= null) sensorManager.unregisterListener(this); }
+              @Override public void onSensorChanged(SensorEvent event) {
                   if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) gravity = event.values.clone();
                   if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) geomagnetic = event.values.clone();
-                  if (gravity != null && geomagnetic != null) {
-                      float[] R = new float[9];
-                      float[] I = new float[9];
+                  if (gravity!= null && geomagnetic!= null) {
+                      float[] R = new float[9]; float[] I = new float[9];
                       boolean success = SensorManager.getRotationMatrix(R, I, gravity, geomagnetic);
                       if (success) {
                           float[] orientation = new float[3];
@@ -237,350 +155,36 @@ jobs:
                           float az = (float) Math.toDegrees(orientation[0]);
                           az = (az + 360) % 360;
                           WebView w = (WebView) this.bridge.getWebView();
-                          if(w != null) w.evaluateJavascript("if(window.onNativeAzimuth) window.onNativeAzimuth("+az+")", null);
+                          if(w!= null) w.evaluateJavascript("if(window.onNativeAzimuth) window.onNativeAzimuth("+az+")", null);
                       }
                   }
               }
               @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
-
-              @Override
-              public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+              @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
                   super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-                  if (requestCode == LOC_PERM_CODE && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                      WebView w = (WebView) this.bridge.getWebView();
-                      if (w != null) w.reload();
-                  }
+                  if (requestCode == LOC_PERM_CODE && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) { WebView w = (WebView) this.bridge.getWebView(); if (w!= null) w.reload(); }
               }
           }
           JAVA
-      - name: Generate or Decode keystore - SIGNED APK FIX
+      - name: Generate or Decode keystore
         run: |
           if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "Using secrets keystore"
             echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
           else
-            echo "No secrets - generating keystore to fix 'package invalid'"
             keytool -genkey -v -keystore android/app/release.keystore -alias taqweem -keyalg RSA -keysize 2048 -validity 10000 -storepass taqweem123 -keypass taqweem123 -dname "CN=Taqweem, OU=Taqweem, O=Taqweem, L=Tripoli, S=North, C=LB"
             echo "KEYSTORE_PASSWORD=taqweem123" >> $GITHUB_ENV
             echo "KEY_ALIAS=taqweem" >> $GITHUB_ENV
             echo "KEY_PASSWORD=taqweem123" >> $GITHUB_ENV
           fi
-          ls -lh android/app/release.keystore
       - name: Build SIGNED RELEASE
         run: |
           cd android
           chmod +x gradlew
-          STORE_PASS=${{ secrets.KEYSTORE_PASSWORD }}
-          if [ -z "$STORE_PASS" ]; then STORE_PASS=${{ env.KEYSTORE_PASSWORD }}; fi
-          if [ -z "$STORE_PASS" ]; then STORE_PASS=taqweem123; fi
-          ALIAS=${{ secrets.KEY_ALIAS }}
-          if [ -z "$ALIAS" ]; then ALIAS=${{ env.KEY_ALIAS }}; fi
-          if [ -z "$ALIAS" ]; then ALIAS=taqweem; fi
-          KEY_PASS=${{ secrets.KEY_PASSWORD }}
-          if [ -z "$KEY_PASS" ]; then KEY_PASS=${{ env.KEY_PASSWORD }}; fi
-          if [ -z "$KEY_PASS" ]; then KEY_PASS=taqweem123; fi
-          ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=$STORE_PASS -Pandroid.injected.signing.key.alias=$ALIAS -Pandroid.injected.signing.key.password=$KEY_PASS
-          ls -lh app/build/outputs/apk/release/
-          ./gradlew bundleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=$STORE_PASS -Pandroid.injected.signing.key.alias=$ALIAS -Pandroid.injected.signing.key.password=$KEY_PASS || true
-          ls -lh app/build/outputs/bundle/release/ || true
-      - name: Upload SIGNED APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: taqweem-SIGNED-APK
-          path: android/app/build/outputs/apk/release/*.apk
-      - name: Upload AAB
-        uses: actions/upload-artifact@v4
-        with:
-          name: taqweem-AAB
-          path: android/app/build/outputs/bundle/release/*.aab
-          if-no-files-found: warn                  w.getSettings().setGeolocationEnabled(true);
-                  w.getSettings().setDomStorageEnabled(true);
-                  w.getSettings().setJavaScriptEnabled(true);
-                  w.getSettings().setAllowFileAccess(true);
-                  w.getSettings().setDatabaseEnabled(true);
-                  w.getSettings().setMixedContentMode(android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-
-                  sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-                  accSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-                  magSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
-
-                  w.setWebChromeClient(new WebChromeClient(){
-                      @Override
-                      public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback){
-                          callback.invoke(origin, true, true);
-                      }
-                  });
-              }
-
-              @Override
-              public void onResume() {
-                  super.onResume();
-                  if(sensorManager != null){
-                      sensorManager.registerListener(this, accSensor, SensorManager.SENSOR_DELAY_GAME);
-                      sensorManager.registerListener(this, magSensor, SensorManager.SENSOR_DELAY_GAME);
-                  }
-              }
-
-              @Override
-              public void onPause() {
-                  super.onPause();
-                  if(sensorManager != null) sensorManager.unregisterListener(this);
-              }
-
-              @Override
-              public void onSensorChanged(SensorEvent event) {
-                  if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) gravity = event.values.clone();
-                  if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) geomagnetic = event.values.clone();
-                  if (gravity != null && geomagnetic != null) {
-                      float[] R = new float[9];
-                      float[] I = new float[9];
-                      boolean success = SensorManager.getRotationMatrix(R, I, gravity, geomagnetic);
-                      if (success) {
-                          float[] orientation = new float[3];
-                          SensorManager.getOrientation(R, orientation);
-                          float az = (float) Math.toDegrees(orientation[0]);
-                          az = (az + 360) % 360;
-                          WebView w = (WebView) this.bridge.getWebView();
-                          if(w != null) w.evaluateJavascript("if(window.onNativeAzimuth) window.onNativeAzimuth("+az+")", null);
-                      }
-                  }
-              }
-              @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
-
-              @Override
-              public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-                  super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-                  if (requestCode == LOC_PERM_CODE && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                      WebView w = (WebView) this.bridge.getWebView();
-                      if (w != null) w.reload();
-                  }
-              }
-          }
-          JAVA
-      - name: Generate or Decode keystore - SIGNED APK FIX
-        run: |
-          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "Using secrets keystore"
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
-          else
-            echo "No secrets - generating keystore to fix 'package invalid'"
-            keytool -genkey -v -keystore android/app/release.keystore -alias taqweem -keyalg RSA -keysize 2048 -validity 10000 -storepass taqweem123 -keypass taqweem123 -dname "CN=Taqweem, OU=Taqweem, O=Taqweem, L=Tripoli, S=North, C=LB"
-            echo "KEYSTORE_PASSWORD=taqweem123" >> $GITHUB_ENV
-            echo "KEY_ALIAS=taqweem" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=taqweem123" >> $GITHUB_ENV
-          fi
-          ls -lh android/app/release.keystore
-      - name: Build SIGNED RELEASE
-        run: |
-          cd android
-          chmod +x gradlew
-          STORE_PASS=${{ secrets.KEYSTORE_PASSWORD }}
-          if [ -z "$STORE_PASS" ]; then STORE_PASS=${{ env.KEYSTORE_PASSWORD }}; fi
-          if [ -z "$STORE_PASS" ]; then STORE_PASS=taqweem123; fi
-          ALIAS=${{ secrets.KEY_ALIAS }}
-          if [ -z "$ALIAS" ]; then ALIAS=${{ env.KEY_ALIAS }}; fi
-          if [ -z "$ALIAS" ]; then ALIAS=taqweem; fi
-          KEY_PASS=${{ secrets.KEY_PASSWORD }}
-          if [ -z "$KEY_PASS" ]; then KEY_PASS=${{ env.KEY_PASSWORD }}; fi
-          if [ -z "$KEY_PASS" ]; then KEY_PASS=taqweem123; fi
-          ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=$STORE_PASS -Pandroid.injected.signing.key.alias=$ALIAS -Pandroid.injected.signing.key.password=$KEY_PASS
-          ls -lh app/build/outputs/apk/release/
-          ./gradlew bundleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=$STORE_PASS -Pandroid.injected.signing.key.alias=$ALIAS -Pandroid.injected.signing.key.password=$KEY_PASS || true
-          ls -lh app/build/outputs/bundle/release/ || true
-      - name: Upload SIGNED APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: taqweem-SIGNED-APK
-          path: android/app/build/outputs/apk/release/*.apk
-      - name: Upload AAB
-        uses: actions/upload-artifact@v4
-        with:
-          name: taqweem-AAB
-          path: android/app/build/outputs/bundle/release/*.aab
-          if-no-files-found: warn    STORE_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
-          ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASS: ${{ secrets.KEY_PASSWORD }}
-        run: |
-          cd android
-          chmod +x gradlew
-          if [ -z "$STORE_PASS" ]; then STORE_PASS=taqweem123; fi
-          if [ -z "$ALIAS" ]; then ALIAS=taqweem; fi
-          if [ -z "$KEY_PASS" ]; then KEY_PASS=taqweem123; fi
-          ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=$STORE_PASS -Pandroid.injected.signing.key.alias=$ALIAS -Pandroid.injected.signing.key.password=$KEY_PASS
-          ls -lh app/build/outputs/apk/release/
-
-      - name: Upload SIGNED APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: taqweem-EMBEDDED-QURAN-APK
-          path: android/app/build/outputs/apk/release/*.apk}
-              @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
-          }
-          JAVA
-
-      - name: Decode keystore
-        run: |
-          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
-          else
-            echo "Generating keystore - WARNING: will break updates!"
-            keytool -genkey -v -keystore android/app/release.keystore -alias taqweem -keyalg RSA -keysize 2048 -validity 10000 -storepass taqweem123 -keypass taqweem123 -dname "CN=Taqweem, OU=Taqweem, O=Taqweem, L=Tripoli, S=North, C=LB"
-            echo "KEYSTORE_PASSWORD=taqweem123" >> $GITHUB_ENV
-            echo "KEY_ALIAS=taqweem" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=taqweem123" >> $GITHUB_ENV
-          fi
-
-      - name: Build SIGNED RELEASE
-        run: |
-          cd android
-          chmod +x gradlew
-          STORE_PASS=${{ secrets.KEYSTORE_PASSWORD }}
-          if [ -z "$STORE_PASS" ]; then STORE_PASS=${{ env.KEYSTORE_PASSWORD }}; fi
-          if [ -z "$STORE_PASS" ]; then STORE_PASS=taqweem123; fi
-          ALIAS=${{ secrets.KEY_ALIAS }}
-          if [ -z "$ALIAS" ]; then ALIAS=${{ env.KEY_ALIAS }}; fi
-          if [ -z "$ALIAS" ]; then ALIAS=taqweem; fi
-          KEY_PASS=${{ secrets.KEY_PASSWORD }}
-          if [ -z "$KEY_PASS" ]; then KEY_PASS=${{ env.KEY_PASSWORD }}; fi
-          if [ -z "$KEY_PASS" ]; then KEY_PASS=taqweem123; fi
+          STORE_PASS=${{ secrets.KEYSTORE_PASSWORD }}; if [ -z "$STORE_PASS" ]; then STORE_PASS=${{ env.KEYSTORE_PASSWORD }}; fi; if [ -z "$STORE_PASS" ]; then STORE_PASS=taqweem123; fi
+          ALIAS=${{ secrets.KEY_ALIAS }}; if [ -z "$ALIAS" ]; then ALIAS=${{ env.KEY_ALIAS }}; fi; if [ -z "$ALIAS" ]; then ALIAS=taqweem; fi
+          KEY_PASS=${{ secrets.KEY_PASSWORD }}; if [ -z "$KEY_PASS" ]; then KEY_PASS=${{ env.KEY_PASSWORD }}; fi; if [ -z "$KEY_PASS" ]; then KEY_PASS=taqweem123; fi
          ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=$STORE_PASS -Pandroid.injected.signing.key.alias=$ALIAS -Pandroid.injected.signing.key.password=$KEY_PASS
-          ls -lh app/build/outputs/apk/release/
-
-      - name: Upload SIGNED APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: taqweem-EMBEDDED-QURAN-APK
-          path: android/app/build/outputs/apk/release/*.apk}
-              @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
-          }
-          JAVA
-
-      - name: Decode keystore
-        run: |
-          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
-          else
-            echo "Generating keystore - WARNING: will break updates!"
-            keytool -genkey -v -keystore android/app/release.keystore -alias taqweem -keyalg RSA -keysize 2048 -validity 10000 -storepass taqweem123 -keypass taqweem123 -dname "CN=Taqweem, OU=Taqweem, O=Taqweem, L=Tripoli, S=North, C=LB"
-            echo "KEYSTORE_PASSWORD=taqweem123" >> $GITHUB_ENV
-            echo "KEY_ALIAS=taqweem" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=taqweem123" >> $GITHUB_ENV
-          fi
-
-      - name: Build SIGNED RELEASE
-        run: |
-          cd android
-          chmod +x gradlew
-          STORE_PASS=${{ secrets.KEYSTORE_PASSWORD }}
-          if [ -z "$STORE_PASS" ]; then STORE_PASS=${{ env.KEYSTORE_PASSWORD }}; fi
-          if [ -z "$STORE_PASS" ]; then STORE_PASS=taqweem123; fi
-          ALIAS=${{ secrets.KEY_ALIAS }}
-          if [ -z "$ALIAS" ]; then ALIAS=${{ env.KEY_ALIAS }}; fi
-          if [ -z "$ALIAS" ]; then ALIAS=taqweem; fi
-          KEY_PASS=${{ secrets.KEY_PASSWORD }}
-          if [ -z "$KEY_PASS" ]; then KEY_PASS=${{ env.KEY_PASSWORD }}; fi
-          if [ -z "$KEY_PASS" ]; then KEY_PASS=taqweem123; fi
-         ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=$STORE_PASS -Pandroid.injected.signing.key.alias=$ALIAS -Pandroid.injected.signing.key.password=$KEY_PASS
-          ls -lh app/build/outputs/apk/release/
-
-      - name: Upload SIGNED APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: taqweem-EMBEDDED-QURAN-APK
-          path: android/app/build/outputs/apk/release/*.apk                  w.getSettings().setGeolocationEnabled(true);
-                  w.getSettings().setDomStorageEnabled(true);
-                  w.getSettings().setJavaScriptEnabled(true);
-                  w.getSettings().setAllowFileAccess(true);
-                  w.getSettings().setDatabaseEnabled(true);
-                  w.getSettings().setMixedContentMode(android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-
-                  sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
-                  accSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-                  magSensor = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
-
-                  w.setWebChromeClient(new WebChromeClient(){
-                      @Override
-                      public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback){
-                          callback.invoke(origin, true, true);
-                      }
-                  });
-              }
-
-              @Override
-              public void onResume() {
-                  super.onResume();
-                  if(sensorManager != null){
-                      sensorManager.registerListener(this, accSensor, SensorManager.SENSOR_DELAY_GAME);
-                      sensorManager.registerListener(this, magSensor, SensorManager.SENSOR_DELAY_GAME);
-                  }
-              }
-
-              @Override
-              public void onPause() {
-                  super.onPause();
-                  if(sensorManager != null) sensorManager.unregisterListener(this);
-              }
-
-              @Override
-              public void onSensorChanged(SensorEvent event) {
-                  if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) gravity = event.values.clone();
-                  if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) geomagnetic = event.values.clone();
-                  if (gravity != null && geomagnetic != null) {
-                      float[] R = new float[9];
-                      float[] I = new float[9];
-                      boolean success = SensorManager.getRotationMatrix(R, I, gravity, geomagnetic);
-                      if (success) {
-                          float[] orientation = new float[3];
-                          SensorManager.getOrientation(R, orientation);
-                          float az = (float) Math.toDegrees(orientation[0]);
-                          az = (az + 360) % 360;
-                          WebView w = (WebView) this.bridge.getWebView();
-                          if(w != null) w.evaluateJavascript("if(window.onNativeAzimuth) window.onNativeAzimuth("+az+")", null);
-                      }
-                  }
-              }
-              @Override public void onAccuracyChanged(Sensor sensor, int accuracy) {}
-
-              @Override
-              public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-                  super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-                  if (requestCode == LOC_PERM_CODE && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                      WebView w = (WebView) this.bridge.getWebView();
-                      if (w != null) w.reload();
-                  }
-              }
-          }
-          JAVA
-      - name: Generate or Decode keystore - SIGNED APK FIX
-        run: |
-          if [ -n "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "Using secrets keystore"
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
-          else
-            echo "No secrets - generating keystore to fix 'package invalid'"
-            keytool -genkey -v -keystore android/app/release.keystore -alias taqweem -keyalg RSA -keysize 2048 -validity 10000 -storepass taqweem123 -keypass taqweem123 -dname "CN=Taqweem, OU=Taqweem, O=Taqweem, L=Tripoli, S=North, C=LB"
-            echo "KEYSTORE_PASSWORD=taqweem123" >> $GITHUB_ENV
-            echo "KEY_ALIAS=taqweem" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=taqweem123" >> $GITHUB_ENV
-          fi
-          ls -lh android/app/release.keystore
-      - name: Build SIGNED RELEASE
-        run: |
-          cd android
-          chmod +x gradlew
-          STORE_PASS=${{ secrets.KEYSTORE_PASSWORD }}
-          if [ -z "$STORE_PASS" ]; then STORE_PASS=${{ env.KEYSTORE_PASSWORD }}; fi
-          if [ -z "$STORE_PASS" ]; then STORE_PASS=taqweem123; fi
-          ALIAS=${{ secrets.KEY_ALIAS }}
-          if [ -z "$ALIAS" ]; then ALIAS=${{ env.KEY_ALIAS }}; fi
-          if [ -z "$ALIAS" ]; then ALIAS=taqweem; fi
-          KEY_PASS=${{ secrets.KEY_PASSWORD }}
-          if [ -z "$KEY_PASS" ]; then KEY_PASS=${{ env.KEY_PASSWORD }}; fi
-          if [ -z "$KEY_PASS" ]; then KEY_PASS=taqweem123; fi
-          ./gradlew assembleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=$STORE_PASS -Pandroid.injected.signing.key.alias=$ALIAS -Pandroid.injected.signing.key.password=$KEY_PASS
-          ls -lh app/build/outputs/apk/release/
-          ./gradlew bundleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=$STORE_PASS -Pandroid.injected.signing.key.alias=$ALIAS -Pandroid.injected.signing.key.password=$KEY_PASS || true
-          ls -lh app/build/outputs/bundle/release/ || true
+         ./gradlew bundleRelease -Pandroid.injected.signing.store.file=$PWD/app/release.keystore -Pandroid.injected.signing.store.password=$STORE_PASS -Pandroid.injected.signing.key.alias=$ALIAS -Pandroid.injected.signing.key.password=$KEY_PASS || true
       - name: Upload SIGNED APK
         uses: actions/upload-artifact@v4
         with:
